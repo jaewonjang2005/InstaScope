@@ -1,6 +1,9 @@
 {
   "buildCommand": "cd fe && npm run build",
   "outputDirectory": "fe/dist",
+  "env": {
+    "UV_LINK_MODE": "copy"
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
