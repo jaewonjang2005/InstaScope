@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Upload, FileArchive, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
+import { FileArchive, AlertCircle } from 'lucide-react';
 
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? 'http://localhost:8000'
@@ -35,27 +35,6 @@ export default function UploadSection({ onAnalysisComplete, loading, setLoading 
       }
     } catch (err) {
       setErrorMsg('API 서버와의 통신에 실패했습니다.');
-      setLoading(false);
-    }
-  };
-
-  const handleLocalDemo = async () => {
-    setErrorMsg('');
-    setLoading(true);
-    try {
-      const localPath = "c:\\Users\\jjaew\\OneDrive\\바탕 화면\\2026 2학기 부트캠프 스터디\\7-8월 토이프로젝트(인스타 알고리즘 분석)\\instagram-lex_xelop-전체데이터(7.28.2026 기준)";
-      const res = await fetch(`${API_BASE_URL}/api/analyze-local?dir_path=${encodeURIComponent(localPath)}`, {
-        method: 'POST'
-      });
-      const data = await res.json();
-      if (res.ok && data.job_id) {
-        fetchResults(data.job_id);
-      } else {
-        setErrorMsg(data.detail || '샘플 데이터 분석 실패');
-        setLoading(false);
-      }
-    } catch (err) {
-      setErrorMsg('API 서버 연결 오류. 백엔드 서버 상태를 확인하세요.');
       setLoading(false);
     }
   };
@@ -136,13 +115,6 @@ export default function UploadSection({ onAnalysisComplete, loading, setLoading 
           <AlertCircle size={18} /> {errorMsg}
         </div>
       )}
-
-      {/* Local Fast Demo Button */}
-      <div style={{ marginTop: '2rem' }}>
-        <button className="gradient-btn" onClick={handleLocalDemo} disabled={loading}>
-          <Zap size={18} /> 샘플 데이터로 즉시 분석해보기 (Fast Demo)
-        </button>
-      </div>
     </div>
   );
 }
