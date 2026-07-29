@@ -8,6 +8,7 @@ import IdealTypeSection from './components/IdealTypeSection';
 import AlgorithmExposeSection from './components/AlgorithmExposeSection';
 import confetti from 'canvas-confetti';
 import { Flame, Lock, Heart, Eye, RefreshCw } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 import './App.css';
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
 
   return (
     <div className="app-container">
+      <Analytics />
       <Header />
 
       <main style={{ minHeight: '80vh' }}>

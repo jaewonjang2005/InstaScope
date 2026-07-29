@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "canvas-confetti": "^1.9.4",
     "chart.js": "^4.4.7",
     "lucide-react": "^0.468.0",
