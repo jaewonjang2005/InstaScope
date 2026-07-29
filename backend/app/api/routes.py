@@ -3,7 +3,8 @@ import shutil
 import tempfile
 import zipfile
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
-from app.services.parser import InstaParser
+from pydantic import BaseModel
+from app.services.parser import InstaParser, InstaMemoryParser
 from app.services.taste_dna import analyze_taste_dna
 from app.services.secret_collection import analyze_secret_collection
 from app.services.ideal_type import analyze_ideal_type
@@ -13,8 +14,10 @@ from app.utils.cleanup import create_job, cleanup_expired_jobs
 
 router = APIRouter()
 
+class JsonPayload(BaseModel):
+    files: dict
+
 def run_analysis(extract_dir: str) -> dict:
-    # Check if there is a single top-level folder inside extract_dir
     subdirs = [os.path.join(extract_dir, d) for d in os.listdir(extract_dir) if os.path.isdir(os.path.join(extract_dir, d))]
     target_dir = extract_dir
     if len(subdirs) == 1 and ('ads_information' in os.listdir(subdirs[0]) or 'connections' in os.listdir(subdirs[0]) or 'your_instagram_activity' in os.listdir(subdirs[0])):
@@ -33,6 +36,31 @@ def run_analysis(extract_dir: str) -> dict:
         "algorithm_expose": algorithm_expose
     }
 
+@router.post("/upload-payload")
+async def upload_payload(payload: JsonPayload, background_tasks: BackgroundTasks):
+    """Zero-file-upload endpoint: receives JSON objects pre-extracted by client browser via JSZip"""
+    try:
+        parser = InstaMemoryParser(payload.files)
+        taste_dna = analyze_taste_dna(parser)
+        secret_collection = analyze_secret_collection(parser)
+        ideal_type = analyze_ideal_type(parser)
+        algorithm_expose = analyze_algorithm_expose(parser)
+
+        analysis_result = {
+            "taste_dna": taste_dna,
+            "secret_collection": secret_collection,
+            "ideal_type": ideal_type,
+            "algorithm_expose": algorithm_expose
+        }
+
+        job_id = create_job()
+        save_analysis_result(job_id, analysis_result)
+        background_tasks.add_task(cleanup_expired_jobs)
+
+        return {"status": "success", "job_id": job_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"브라우저 파싱 데이터 분석 중 오류 발생: {str(e)}")
+
 @router.post("/upload")
 async def upload_zip(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     if not file.filename.endswith('.zip'):
@@ -48,15 +76,11 @@ async def upload_zip(background_tasks: BackgroundTasks, file: UploadFile = File(
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
 
-        # Remove the zip file itself to free space
         os.remove(zip_path)
 
         job_id = create_job()
         analysis_result = run_analysis(temp_dir)
-        
-        # Save to DB (Supabase if env set, fallback to memory)
         save_analysis_result(job_id, analysis_result)
-
         background_tasks.add_task(cleanup_expired_jobs)
 
         return {"status": "success", "job_id": job_id}

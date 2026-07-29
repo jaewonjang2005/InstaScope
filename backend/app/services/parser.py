@@ -10,9 +10,10 @@ class InstaParser:
         self.root_dir = root_dir
 
     def _read_json(self, relative_path: str) -> Any:
+        if not self.root_dir or not os.path.exists(self.root_dir):
+            return None
         full_path = os.path.join(self.root_dir, relative_path)
         if not os.path.exists(full_path):
-            # Try case-insensitive or searching for file
             dir_name = os.path.dirname(full_path)
             base_name = os.path.basename(full_path)
             if os.path.exists(dir_name):
@@ -31,7 +32,6 @@ class InstaParser:
             return None
 
     def parse_followers(self) -> List[Dict[str, Any]]:
-        # connections/followers_and_following/followers_1.json
         data = self._read_json(os.path.join('connections', 'followers_and_following', 'followers_1.json'))
         followers = []
         if isinstance(data, list):
@@ -46,7 +46,6 @@ class InstaParser:
         return followers
 
     def parse_following(self) -> List[Dict[str, Any]]:
-        # connections/followers_and_following/following.json
         data = self._read_json(os.path.join('connections', 'followers_and_following', 'following.json'))
         following = []
         if isinstance(data, dict):
@@ -64,7 +63,6 @@ class InstaParser:
         return following
 
     def parse_recently_unfollowed(self) -> List[Dict[str, Any]]:
-        # connections/followers_and_following/recently_unfollowed_profiles.json
         data = self._read_json(os.path.join('connections', 'followers_and_following', 'recently_unfollowed_profiles.json'))
         unfollowed = []
         if isinstance(data, list):
@@ -87,7 +85,6 @@ class InstaParser:
         return unfollowed
 
     def parse_close_friends(self) -> List[str]:
-        # connections/followers_and_following/close_friends.json
         data = self._read_json(os.path.join('connections', 'followers_and_following', 'close_friends.json'))
         close = []
         if isinstance(data, list):
@@ -98,7 +95,6 @@ class InstaParser:
         return close
 
     def parse_favorited_profiles(self) -> List[str]:
-        # connections/followers_and_following/profiles_you've_favorited.json
         data = self._read_json(os.path.join('connections', 'followers_and_following', "profiles_you've_favorited.json"))
         favs = []
         if isinstance(data, list):
@@ -140,15 +136,12 @@ class InstaParser:
                             if d2.get('label') == '이름':
                                 owner = d2.get('value', '')
 
-            # Extract hashtags from caption if any
             if caption:
                 found_tags = re.findall(r'#(\w+)', caption)
                 for tag in found_tags:
                     hashtags.add(tag)
 
-            # Try extracting username from URL if owner not found
             if not owner and url:
-                # e.g. https://www.instagram.com/p/CODE/ or https://www.instagram.com/reel/CODE/ or https://www.instagram.com/stories/USERNAME/123
                 story_match = re.search(r'instagram\.com/stories/([^/]+)/', url)
                 if story_match:
                     owner = story_match.group(1)
@@ -243,7 +236,6 @@ class InstaParser:
         return self._extract_posts_list(os.path.join('your_instagram_activity', 'story_interactions', 'story_likes.json'))
 
     def parse_ad_categories(self) -> List[str]:
-        # ads_information/instagram_ads_and_businesses/other_categories_used_to_reach_you.json
         data = self._read_json(os.path.join('ads_information', 'instagram_ads_and_businesses', 'other_categories_used_to_reach_you.json'))
         cats = []
         if isinstance(data, dict):
@@ -254,7 +246,6 @@ class InstaParser:
         return cats
 
     def parse_advertisers(self) -> List[str]:
-        # ads_information/instagram_ads_and_businesses/advertisers_using_your_activity_or_information.json
         data = self._read_json(os.path.join('ads_information', 'instagram_ads_and_businesses', 'advertisers_using_your_activity_or_information.json'))
         advertisers = []
         if isinstance(data, dict):
@@ -265,7 +256,6 @@ class InstaParser:
         return advertisers
 
     def parse_locations(self) -> List[str]:
-        # personal_information/information_about_you/locations_of_interest.json
         data = self._read_json(os.path.join('personal_information', 'information_about_you', 'locations_of_interest.json'))
         locations = []
         if isinstance(data, dict):
@@ -277,7 +267,6 @@ class InstaParser:
         return locations
 
     def parse_login_activity(self) -> List[Dict[str, Any]]:
-        # security_and_login_information/login_and_profile_creation/login_activity.json
         data = self._read_json(os.path.join('security_and_login_information', 'login_and_profile_creation', 'login_activity.json'))
         logins = []
         if isinstance(data, dict):
@@ -299,3 +288,17 @@ class InstaParser:
                     'timestamp': ts
                 })
         return logins
+
+
+class InstaMemoryParser(InstaParser):
+    """Parser that reads pre-loaded JSON objects directly from memory dict."""
+    def __init__(self, files_dict: Dict[str, Any]):
+        super().__init__(root_dir="")
+        self.files_dict = files_dict or {}
+
+    def _read_json(self, relative_path: str) -> Any:
+        normalized_key = relative_path.replace('\\', '/').lower()
+        for key, val in self.files_dict.items():
+            if key.replace('\\', '/').lower().endswith(normalized_key):
+                return decode_obj(val)
+        return None
