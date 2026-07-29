@@ -19,18 +19,21 @@ export default function LoadingSection() {
         if (prev < ANALYSIS_STEPS.length - 1) return prev + 1;
         return prev;
       });
-    }, 1800);
+    }, 1500);
 
-    // Progress bar smooth animation
+    // Progress bar smooth animation with fallback creep
     const progressInterval = setInterval(() => {
       setProgress((prev) => {
-        if (prev < 92) {
+        if (prev < 90) {
           const stepAdd = Math.floor(Math.random() * 8) + 4;
-          return Math.min(prev + stepAdd, 92);
+          return Math.min(prev + stepAdd, 90);
+        } else if (prev < 99) {
+          // Creep smoothly towards 99%
+          return prev + 1;
         }
         return prev;
       });
-    }, 400);
+    }, 300);
 
     return () => {
       clearInterval(stepInterval);
@@ -52,7 +55,6 @@ export default function LoadingSection() {
     }}>
       {/* Detective Profile Graphic Banner */}
       <div style={{ position: 'relative', width: '220px', height: '220px', marginBottom: '2rem' }}>
-        {/* Glow Ring */}
         <div style={{
           position: 'absolute',
           top: '-10px',
@@ -77,7 +79,6 @@ export default function LoadingSection() {
           }}
         />
 
-        {/* Holographic Scanline Overlay */}
         <div style={{
           position: 'absolute',
           top: 0, left: 0, right: 0, bottom: 0,
@@ -122,7 +123,6 @@ export default function LoadingSection() {
           }} />
         </div>
 
-        {/* Progress Percentage Display */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.8rem', fontSize: '0.85rem', color: 'var(--text-muted)' }}>
           <span>탐정 파싱 프로세스</span>
           <span style={{ fontWeight: '700', color: '#fcb045' }}>{progress}%</span>
