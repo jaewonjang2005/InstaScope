@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-fe/node_modules/
+frontend/node_modules/
 backend/venv/
 .venv/
 __pycache__/
@@ -14,7 +14,7 @@ data/temp/
 
 # Build outputs
 dist/
-fe/dist/
+frontend/dist/
 build/
 .output/
 .vercel/
