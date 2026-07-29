@@ -5,18 +5,17 @@ const API_BASE_URL = window.location.hostname === 'localhost' || window.location
   ? 'http://localhost:8000'
   : '';
 
-export default function UploadSection({ onAnalysisComplete, setStep }) {
+export default function UploadSection({ onAnalysisComplete, setStep, globalError, setGlobalError }) {
   const [dragActive, setDragActive] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
   const [showGuideModal, setShowGuideModal] = useState(false);
 
   const handleFileUpload = async (file) => {
     if (!file || !file.name.endsWith('.zip')) {
-      setErrorMsg('ZIP 형식의 인스타그램 데이터 다운로드 파일만 업로드 가능합니다.');
+      setGlobalError('ZIP 형식의 인스타그램 데이터 다운로드 파일만 업로드 가능합니다.');
       return;
     }
 
-    setErrorMsg('');
+    setGlobalError('');
     setStep('loading');
 
     const formData = new FormData();
@@ -31,11 +30,11 @@ export default function UploadSection({ onAnalysisComplete, setStep }) {
       if (res.ok && data.job_id) {
         fetchResults(data.job_id);
       } else {
-        setErrorMsg(data.detail || '파일 업로드 실패. 파일 용량이 Vercel 제한(4.5MB)을 초과했는지 확인하세요.');
+        setGlobalError(data.detail || '파일 업로드 실패. 파일 용량이 Vercel 제한(4.5MB)을 초과했는지 확인하세요.');
         setStep('upload');
       }
     } catch (err) {
-      setErrorMsg('API 서버와의 통신에 실패했습니다.');
+      setGlobalError('API 서버와의 통신에 실패했습니다. 파일 용량(4.5MB 제한) 또는 백엔드 상태를 확인하세요.');
       setStep('upload');
     }
   };
@@ -48,11 +47,11 @@ export default function UploadSection({ onAnalysisComplete, setStep }) {
         onAnalysisComplete(data.data);
         setStep('results');
       } else {
-        setErrorMsg('결과 조회 실패');
+        setGlobalError('결과 조회 실패: 서버에서 분석 데이터를 가져오지 못했습니다.');
         setStep('upload');
       }
     } catch (err) {
-      setErrorMsg('결과 데이터를 불러오는데 실패했습니다.');
+      setGlobalError('결과 데이터를 불러오는데 실패했습니다.');
       setStep('upload');
     }
   };
@@ -125,9 +124,26 @@ export default function UploadSection({ onAnalysisComplete, setStep }) {
         </div>
       </div>
 
-      {errorMsg && (
-        <div style={{ marginTop: '1.5rem', color: '#ff4757', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: 'rgba(255, 71, 87, 0.1)', padding: '0.8rem', borderRadius: '12px' }}>
-          <AlertCircle size={18} /> {errorMsg}
+      {/* Global Error Banner */}
+      {globalError && (
+        <div style={{
+          marginTop: '1.8rem',
+          color: '#ff4757',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0.6rem',
+          background: 'rgba(255, 71, 87, 0.12)',
+          border: '1px solid rgba(255, 71, 87, 0.4)',
+          padding: '1rem 1.5rem',
+          borderRadius: '16px',
+          maxWidth: '650px',
+          margin: '1.8rem auto 0',
+          fontSize: '0.95rem',
+          lineHeight: '1.4'
+        }}>
+          <AlertCircle size={22} style={{ flexShrink: 0 }} /> 
+          <div style={{ textAlign: 'left' }}>{globalError}</div>
         </div>
       )}
 

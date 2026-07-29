@@ -8,6 +8,7 @@ __pycache__/
 
 # Local Data / User Instagram ZIP & Extracted folders (NEVER COMMIT)
 instagram-lex_xelop-*/
+데모 파일*/
 *.zip
 data/temp/
 *.log

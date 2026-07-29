@@ -14,9 +14,11 @@ export default function App() {
   const [step, setStep] = useState('upload'); // 'upload' | 'loading' | 'results'
   const [analysisData, setAnalysisData] = useState(null);
   const [activeTab, setActiveTab] = useState('taste'); // 'taste' | 'secret' | 'ideal' | 'expose'
+  const [globalError, setGlobalError] = useState('');
 
   const handleAnalysisComplete = (data) => {
     setAnalysisData(data);
+    setGlobalError('');
     
     // Trigger celebratory confetti effect
     try {
@@ -32,6 +34,7 @@ export default function App() {
 
   const handleReset = () => {
     setAnalysisData(null);
+    setGlobalError('');
     setStep('upload');
     setActiveTab('taste');
   };
@@ -46,6 +49,8 @@ export default function App() {
           <UploadSection 
             onAnalysisComplete={handleAnalysisComplete} 
             setStep={setStep}
+            globalError={globalError}
+            setGlobalError={setGlobalError}
           />
         )}
 
