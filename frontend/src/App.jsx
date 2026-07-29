@@ -1,101 +1,154 @@
 import React, { useState } from 'react';
-import confetti from 'canvas-confetti';
 import Header from './components/Header';
 import UploadSection from './components/UploadSection';
+import LoadingSection from './components/LoadingSection';
 import TasteDnaSection from './components/TasteDnaSection';
 import SecretCollectionSection from './components/SecretCollectionSection';
 import IdealTypeSection from './components/IdealTypeSection';
 import AlgorithmExposeSection from './components/AlgorithmExposeSection';
-import { RotateCcw, Download } from 'lucide-react';
+import confetti from 'canvas-confetti';
+import { Flame, Lock, Heart, Eye, RefreshCw } from 'lucide-react';
+import './App.css';
 
 export default function App() {
-  const [analysisResult, setAnalysisResult] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState('upload'); // 'upload' | 'loading' | 'results'
+  const [analysisData, setAnalysisData] = useState(null);
+  const [activeTab, setActiveTab] = useState('taste'); // 'taste' | 'secret' | 'ideal' | 'expose'
 
-  const handleAnalysisComplete = (resultData) => {
-    setAnalysisResult(resultData);
-    // Dopamine Confetti Explosion!
+  const handleAnalysisComplete = (data) => {
+    setAnalysisData(data);
+    
+    // Trigger celebratory confetti effect
     try {
       confetti({
-        particleCount: 120,
-        spread: 80,
+        particleCount: 100,
+        spread: 70,
         origin: { y: 0.6 }
       });
     } catch (e) {
-      console.log('Confetti effect failed', e);
+      console.log('Confetti error:', e);
     }
   };
 
   const handleReset = () => {
-    setAnalysisResult(null);
+    setAnalysisData(null);
+    setStep('upload');
+    setActiveTab('taste');
   };
 
   return (
     <div className="app-container">
       <Header />
 
-      {!analysisResult ? (
-        <UploadSection 
-          onAnalysisComplete={handleAnalysisComplete} 
-          loading={loading} 
-          setLoading={setLoading} 
-        />
-      ) : (
-        <div>
-          {/* Action Bar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1rem' }}>
-            <div>
-              <span className="badge badge-fire" style={{ fontSize: '0.9rem', padding: '0.4rem 1rem' }}>
-                🎉 프로파일링 완료!
-              </span>
-              <h2 style={{ fontSize: '1.8rem', fontWeight: '800', marginTop: '0.4rem' }}>
-                당신의 인스타그램 데이터 종합 해부 대시보드
-              </h2>
-            </div>
+      <main style={{ minHeight: '80vh' }}>
+        {/* Page 1: Upload Landing Page */}
+        {step === 'upload' && (
+          <UploadSection 
+            onAnalysisComplete={handleAnalysisComplete} 
+            setStep={setStep}
+          />
+        )}
 
-            <div style={{ display: 'flex', gap: '0.8rem' }}>
-              <button className="gradient-btn" onClick={() => window.print()} style={{ padding: '0.6rem 1.4rem', fontSize: '0.9rem' }}>
-                <Download size={16} /> 리포트 저장 (PDF/인쇄)
-              </button>
+        {/* Page 2: Detective Loading Profiler Page */}
+        {step === 'loading' && (
+          <LoadingSection />
+        )}
+
+        {/* Page 3: Profile Analysis Results Dashboard */}
+        {step === 'results' && analysisData && (
+          <div>
+            {/* Navigation Tabs Bar */}
+            <div className="glass-card" style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '0.8rem',
+              padding: '0.8rem 1rem',
+              borderRadius: '20px',
+              margin: '1.5rem 0 2.5rem',
+              overflowX: 'auto'
+            }}>
               <button 
-                onClick={handleReset} 
-                style={{ 
-                  background: 'rgba(255,255,255,0.08)', 
-                  border: '1px solid rgba(255,255,255,0.15)', 
-                  color: 'white', 
-                  borderRadius: '999px', 
-                  padding: '0.6rem 1.4rem', 
+                className={`gradient-btn ${activeTab === 'taste' ? '' : 'badge-mild'}`}
+                style={{ opacity: activeTab === 'taste' ? 1 : 0.6 }}
+                onClick={() => setActiveTab('taste')}
+              >
+                <Flame size={18} /> 🌶️ 취향 DNA 리포트
+              </button>
+
+              <button 
+                className={`gradient-btn ${activeTab === 'secret' ? '' : 'badge-mild'}`}
+                style={{ opacity: activeTab === 'secret' ? 1 : 0.6 }}
+                onClick={() => setActiveTab('secret')}
+              >
+                <Lock size={18} /> 🔒 비밀 컬렉션 해부
+              </button>
+
+              <button 
+                className={`gradient-btn ${activeTab === 'ideal' ? '' : 'badge-mild'}`}
+                style={{ opacity: activeTab === 'ideal' ? 1 : 0.6 }}
+                onClick={() => setActiveTab('ideal')}
+              >
+                <Heart size={18} /> 💕 이상형 계정 추적
+              </button>
+
+              <button 
+                className={`gradient-btn ${activeTab === 'expose' ? '' : 'badge-mild'}`}
+                style={{ opacity: activeTab === 'expose' ? 1 : 0.6 }}
+                onClick={() => setActiveTab('expose')}
+              >
+                <Eye size={18} /> 🕵️ 알고리즘 타겟팅 폭로
+              </button>
+
+              <button 
+                onClick={handleReset}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#fff',
+                  borderRadius: '12px',
+                  padding: '0.6rem 1rem',
+                  fontSize: '0.85rem',
                   cursor: 'pointer',
-                  fontWeight: '600',
-                  display: 'inline-flex',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '0.4rem'
+                  gap: '0.4rem',
+                  marginLeft: 'auto'
                 }}
               >
-                <RotateCcw size={16} /> 다른 데이터 분석하기
+                <RefreshCw size={14} /> 새 분석하기
               </button>
             </div>
+
+            {/* Active Tab Content Display */}
+            {activeTab === 'taste' && (
+              <TasteDnaSection data={analysisData.taste_dna} />
+            )}
+
+            {activeTab === 'secret' && (
+              <SecretCollectionSection data={analysisData.secret_collection} />
+            )}
+
+            {activeTab === 'ideal' && (
+              <IdealTypeSection data={analysisData.ideal_type} />
+            )}
+
+            {activeTab === 'expose' && (
+              <AlgorithmExposeSection data={analysisData.algorithm_expose} />
+            )}
           </div>
+        )}
+      </main>
 
-          {/* 1. Taste DNA */}
-          <TasteDnaSection data={analysisResult.taste_dna} />
-
-          {/* 2. Secret Collection */}
-          <SecretCollectionSection data={analysisResult.secret_collection} />
-
-          {/* 3. Ideal Type Recommendation (MAIN) */}
-          <IdealTypeSection data={analysisResult.ideal_type} />
-
-          {/* 4. Algorithm Expose */}
-          <AlgorithmExposeSection data={analysisResult.algorithm_expose} />
-
-          {/* Footer note */}
-          <footer style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '4rem', borderTop: '1px solid var(--border-color)', paddingTop: '2rem' }}>
-            <p>InstaScope — 100% Client/Local Temporary Processing System.</p>
-            <p style={{ marginTop: '0.3rem' }}>모든 개인 데이터는 분석 결과 생성 즉시 메모리 및 파일 스토리지에서 자동 삭제됩니다.</p>
-          </footer>
-        </div>
-      )}
+      <footer style={{
+        textAlign: 'center',
+        padding: '2rem 0',
+        color: 'var(--text-muted)',
+        fontSize: '0.85rem',
+        borderTop: '1px solid rgba(255,255,255,0.05)',
+        marginTop: '4rem'
+      }}>
+        InstaScope — 인스타그램 알고리즘 프로파일링 엔진 © 2026. All rights reserved.
+      </footer>
     </div>
   );
 }
