@@ -8,7 +8,8 @@ from app.services.taste_dna import analyze_taste_dna
 from app.services.secret_collection import analyze_secret_collection
 from app.services.ideal_type import analyze_ideal_type
 from app.services.algorithm_expose import analyze_algorithm_expose
-from app.utils.cleanup import create_job, store_job_result, get_job_result, cleanup_expired_jobs
+from app.services.db_service import save_analysis_result, fetch_analysis_result
+from app.utils.cleanup import create_job, cleanup_expired_jobs
 
 router = APIRouter()
 
@@ -52,7 +53,9 @@ async def upload_zip(background_tasks: BackgroundTasks, file: UploadFile = File(
 
         job_id = create_job()
         analysis_result = run_analysis(temp_dir)
-        store_job_result(job_id, analysis_result, temp_dir)
+        
+        # Save to DB (Supabase if env set, fallback to memory)
+        save_analysis_result(job_id, analysis_result)
 
         background_tasks.add_task(cleanup_expired_jobs)
 
@@ -63,21 +66,9 @@ async def upload_zip(background_tasks: BackgroundTasks, file: UploadFile = File(
             shutil.rmtree(temp_dir)
         raise HTTPException(status_code=500, detail=f"분석 중 오류 발생: {str(e)}")
 
-@router.post("/analyze-local")
-async def analyze_local(dir_path: str):
-    """Convenience endpoint to analyze local workspace directory directly"""
-    if not os.path.exists(dir_path):
-        raise HTTPException(status_code=404, detail="디렉토리를 찾을 수 없습니다.")
-
-    job_id = create_job()
-    analysis_result = run_analysis(dir_path)
-    store_job_result(job_id, analysis_result, None)
-
-    return {"status": "success", "job_id": job_id}
-
 @router.get("/results/{job_id}")
 async def get_results(job_id: str):
-    result = get_job_result(job_id)
+    result = fetch_analysis_result(job_id)
     if not result:
         raise HTTPException(status_code=404, detail="분석 결과를 찾을 수 없거나 만료되었습니다.")
     return {"status": "success", "job_id": job_id, "data": result}
