@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Instagram, ShieldCheck } from 'lucide-react';
+import { Sparkles, ShieldCheck } from 'lucide-react';
 
 export default function Header() {
   return (
