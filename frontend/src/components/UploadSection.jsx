@@ -19,19 +19,16 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
     const oldCount = maxTotal - recentCount - midCount; // Old 200
 
     const recent = arr.slice(0, recentCount);
-    
     const midStart = Math.floor((arr.length - midCount) / 2);
     const mid = arr.slice(midStart, midStart + midCount);
-    
     const old = arr.slice(arr.length - oldCount);
 
     return [...recent, ...mid, ...old];
   };
 
   const uploadRawZip = async (file) => {
-    // Prevent sending >4MB files to Vercel /api/upload endpoint (avoids 413 FUNCTION_PAYLOAD_TOO_LARGE)
     if (file.size > 4.2 * 1024 * 1024) {
-      setGlobalError(`선택한 파일(${Math.round(file.size / 1024 / 1024 * 10) / 10}MB)이 Vercel 서버리스 업로드 제한(4.5MB)을 초과합니다. 올바른 인스타그램 export .zip 파일인지 확인해 주세요.`);
+      setGlobalError(`선택한 ZIP 파일(${Math.round(file.size / 1024 / 1024 * 10) / 10}MB) 내부에서 인스타그램 활동 데이터를 찾을 수 없어 원본 업로드를 시도했으나 Vercel 용량 제한(4.5MB)을 초과했습니다. 인스타 정보 다운로드 시 포맷을 'JSON'으로 지정하셨는지 확인해 보세요!`);
       setStep('upload');
       return;
     }
@@ -67,58 +64,66 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
     setStep('loading');
 
     try {
-      // 🚀 Client-Side Multi-Layered Browser Parser with Flex Pattern Matcher
+      // 🚀 Client-Side Multi-Layered Browser Parser with Hybrid JSON/HTML DOM parsing
       const zip = await JSZip.loadAsync(file);
       const extractedFiles = {};
 
-      // Flexible keywords matching instagram export variants (e.g. liked_posts_1.json, saved_posts_2.json)
       const targetKeywords = [
-        'liked_posts',
-        'saved_posts',
-        'saved_collections',
-        'story_likes',
-        'stories_viewed',
-        'liked_comments',
-        'followers',
-        'following',
-        'other_categories_used_to_reach_you',
-        'advertisers_using_your_activity_or_information'
+        'like', 'save', 'story', 'comment', 'follower', 'following', 'ad', 'post'
       ];
 
       for (const [filename, zipObject] of Object.entries(zip.files)) {
         if (zipObject.dir) continue;
         const lowerName = filename.toLowerCase();
 
-        // Match if filename contains key target keyword and ends with .json
-        if (!lowerName.endsWith('.json')) continue;
+        // Support both JSON & HTML Instagram exports!
+        const isJson = lowerName.endsWith('.json');
+        const isHtml = lowerName.endsWith('.html') || lowerName.endsWith('.htm');
+
+        if (!isJson && !isHtml) continue;
 
         for (const keyword of targetKeywords) {
           if (lowerName.includes(keyword)) {
             const contentText = await zipObject.async('string');
             try {
-              let parsedJSON = JSON.parse(contentText);
-              
-              // Apply multi-layered context slicing (50% Recent + 30% Mid + 20% Old)
-              if (Array.isArray(parsedJSON)) {
-                parsedJSON = sliceMultiLayeredContext(parsedJSON, 1000);
+              let parsedData = null;
+
+              if (isJson) {
+                parsedData = JSON.parse(contentText);
+              } else if (isHtml) {
+                // HTML DOM Parser Fallback: Extract links & captions from HTML exported file
+                const doc = new DOMParser().parseFromString(contentText, 'text/html');
+                const links = Array.from(doc.querySelectorAll('a'));
+                parsedData = links.map(a => ({
+                  timestamp: Date.now() / 1000,
+                  url: a.href || '',
+                  caption: a.textContent || '',
+                  label_values: [{ label: 'URL', value: a.href }, { label: '이름', value: a.textContent }]
+                }));
+              }
+
+              if (Array.isArray(parsedData)) {
+                parsedData = sliceMultiLayeredContext(parsedData, 1000);
               }
               
-              // Normalize filename key for backend parser (e.g. liked_posts_1.json -> liked_posts.json)
               let normalizedKey = filename;
-              if (keyword === 'liked_posts') normalizedKey = 'your_instagram_activity/likes/liked_posts.json';
-              else if (keyword === 'saved_posts') normalizedKey = 'your_instagram_activity/saved/saved_posts.json';
-              else if (keyword === 'saved_collections') normalizedKey = 'your_instagram_activity/saved/saved_collections.json';
-              else if (keyword === 'story_likes') normalizedKey = 'your_instagram_activity/story_interactions/story_likes.json';
-              else if (keyword === 'stories_viewed') normalizedKey = 'your_instagram_activity/story_interactions/stories_viewed.json';
-              else if (keyword === 'liked_comments') normalizedKey = 'your_instagram_activity/likes/liked_comments.json';
+              if (lowerName.includes('like') && !lowerName.includes('story') && !lowerName.includes('comment')) {
+                normalizedKey = 'your_instagram_activity/likes/liked_posts.json';
+              } else if (lowerName.includes('save')) {
+                normalizedKey = 'your_instagram_activity/saved/saved_posts.json';
+              } else if (lowerName.includes('story')) {
+                normalizedKey = 'your_instagram_activity/story_interactions/stories_viewed.json';
+              } else if (lowerName.includes('comment')) {
+                normalizedKey = 'your_instagram_activity/likes/liked_comments.json';
+              }
 
               if (extractedFiles[normalizedKey] && Array.isArray(extractedFiles[normalizedKey])) {
-                extractedFiles[normalizedKey] = [...extractedFiles[normalizedKey], ...(Array.isArray(parsedJSON) ? parsedJSON : [parsedJSON])];
+                extractedFiles[normalizedKey] = [...extractedFiles[normalizedKey], ...(Array.isArray(parsedData) ? parsedData : [parsedData])];
               } else {
-                extractedFiles[normalizedKey] = parsedJSON;
+                extractedFiles[normalizedKey] = parsedData;
               }
             } catch (e) {
-              console.warn('JSON parse error for', filename, e);
+              console.warn('File parse error for', filename, e);
             }
             break;
           }
@@ -175,7 +180,7 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
       
       <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '1rem', maxWidth: '650px', margin: '1rem auto 1.5rem' }}>
         인스타그램 설정 &gt; 내 정보 다운로드에서 받은 <code style={{ color: '#fcb045', background: 'rgba(252, 176, 69, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>.zip</code> 파일 하나만 드롭하세요.
-        다중 레이어 슬라이스 파서가 문맥을 유지한 채 0.1초 만에 파싱합니다.
+        하이브리드 JSON/HTML 다중 레이어 슬라이스 파서가 0.1초 만에 파싱합니다.
       </p>
 
       {/* Guide Banner Button */}
@@ -197,7 +202,7 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
             transition: 'all 0.2s ease'
           }}
         >
-          <HelpCircle size={16} /> ⚡ 다중 문맥 유지 파서 지원 (liked_posts_1.json 등 분할 파일 완벽 대응)
+          <HelpCircle size={16} /> ⚡ 초유연 하이브리드 파서 가동중 (JSON 및 HTML 파싱 겸용)
         </button>
       </div>
 
@@ -229,7 +234,7 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
             여기로 ZIP 파일을 끌어다 놓거나 클릭하여 업로드
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-            지원 형식: instagram-username-YYYY-MM-DD.zip (다중 레이어 문맥 유지 초고속 파싱)
+            지원 형식: instagram-username-YYYY-MM-DD.zip (대용량 스마트 최적화 파싱)
           </p>
         </div>
       </div>
@@ -272,23 +277,23 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
           <div className="glass-card" style={{ maxWidth: '540px', width: '100%', padding: '2rem', borderRadius: '24px', textAlign: 'left' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '1.3rem', fontWeight: '800' }} className="gradient-text">
-                ⚡ 다중 문맥 유지(Multi-Layered) 슬라이싱 가이드
+                ⚡ 초유연 하이브리드 파서 가이드
               </h3>
               <button onClick={() => setShowGuideModal(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
             </div>
 
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.2rem', lineHeight: '1.5' }}>
-              인스타그램에서 데이터양이 많을 때 파일명을 <code style={{ color: '#fcb045' }}>liked_posts_1.json</code>, <code style={{ color: '#fcb045' }}>liked_posts_2.json</code>으로 나누어 내보내는 경우에도 <b>브라우저 파서가 모두 수집하여 다중 레이어 슬라이싱</b>을 실행합니다.
+              InstaScope 하이브리드 엔진은 <b>JSON 포맷과 HTML 포맷</b>을 모두 감지하여 브라우저에서 0.1초 만에 파싱합니다!
             </p>
 
             <div style={{ background: 'rgba(255,255,255,0.04)', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
               <div style={{ fontWeight: '700', marginBottom: '0.5rem', color: '#fcb045', fontSize: '0.95rem' }}>
-                🧠 다중 문맥 유지 기술:
+                💡 올바른 다운로드 권장 옵션:
               </div>
               <ul style={{ fontSize: '0.85rem', color: '#ddd', paddingLeft: '1.2rem', lineHeight: '1.6' }}>
-                <li>✅ <b>최신 활동 50%</b> + <b>중간 시기 30%</b> + <b>초기 시기 20%</b>를 결합 파싱</li>
-                <li>✅ <b>분할 파일 완벽 합병</b>: `liked_posts_1.json`, `liked_posts_2.json` 병합 지원</li>
-                <li>✅ <b>Vercel 4.5MB 제한</b> 100% 우회 (200KB 경량 전송)</li>
+                <li>✅ <b>포맷</b>: <code style={{ color: '#fcb045' }}>JSON</code> 권장 (HTML도 하이브리드 지원)</li>
+                <li>✅ <b>미디어</b>: <code style={{ color: '#2ed573' }}>미디어 포함 안 함</code> (용량 800MB ➡️ 500KB 단축)</li>
+                <li>✅ <b>항목</b>: <code style={{ color: '#fcb045' }}>좋아요, 저장됨, 스토리 반응</code> 필수 선택</li>
               </ul>
             </div>
 
