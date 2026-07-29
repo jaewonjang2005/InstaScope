@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { Upload, FileArchive, Zap, CheckCircle2, AlertCircle } from 'lucide-react';
 
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:8000'
+  : '';
+
 export default function UploadSection({ onAnalysisComplete, loading, setLoading }) {
   const [dragActive, setDragActive] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -18,7 +22,7 @@ export default function UploadSection({ onAnalysisComplete, loading, setLoading 
     formData.append('file', file);
 
     try {
-      const res = await fetch('http://localhost:8000/api/upload', {
+      const res = await fetch(`${API_BASE_URL}/api/upload`, {
         method: 'POST',
         body: formData
       });
@@ -30,7 +34,7 @@ export default function UploadSection({ onAnalysisComplete, loading, setLoading 
         setLoading(false);
       }
     } catch (err) {
-      setErrorMsg('백엔드 서버(http://localhost:8000)와의 통신에 실패했습니다.');
+      setErrorMsg('API 서버와의 통신에 실패했습니다.');
       setLoading(false);
     }
   };
@@ -40,7 +44,7 @@ export default function UploadSection({ onAnalysisComplete, loading, setLoading 
     setLoading(true);
     try {
       const localPath = "c:\\Users\\jjaew\\OneDrive\\바탕 화면\\2026 2학기 부트캠프 스터디\\7-8월 토이프로젝트(인스타 알고리즘 분석)\\instagram-lex_xelop-전체데이터(7.28.2026 기준)";
-      const res = await fetch(`http://localhost:8000/api/analyze-local?dir_path=${encodeURIComponent(localPath)}`, {
+      const res = await fetch(`${API_BASE_URL}/api/analyze-local?dir_path=${encodeURIComponent(localPath)}`, {
         method: 'POST'
       });
       const data = await res.json();
@@ -51,14 +55,14 @@ export default function UploadSection({ onAnalysisComplete, loading, setLoading 
         setLoading(false);
       }
     } catch (err) {
-      setErrorMsg('백엔드 서버 연결 오류. API 서버가 작동 중인지 확인하세요.');
+      setErrorMsg('API 서버 연결 오류. 백엔드 서버 상태를 확인하세요.');
       setLoading(false);
     }
   };
 
   const fetchResults = async (jobId) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/results/${jobId}`);
+      const res = await fetch(`${API_BASE_URL}/api/results/${jobId}`);
       const data = await res.json();
       if (res.ok && data.data) {
         onAnalysisComplete(data.data);
