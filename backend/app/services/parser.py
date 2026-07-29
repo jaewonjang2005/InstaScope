@@ -6,6 +6,7 @@ from typing import Dict, List, Any
 from app.utils.encoding import decode_insta_text, decode_obj
 
 class InstaParser:
+    """Parser focused strictly on your_instagram_activity directory."""
     def __init__(self, root_dir: str):
         self.root_dir = root_dir
 
@@ -30,79 +31,6 @@ class InstaParser:
         except Exception as e:
             print(f"Error reading {relative_path}: {e}")
             return None
-
-    def parse_followers(self) -> List[Dict[str, Any]]:
-        data = self._read_json(os.path.join('connections', 'followers_and_following', 'followers_1.json'))
-        followers = []
-        if isinstance(data, list):
-            for item in data:
-                str_list = item.get('string_list_data', [])
-                for entry in str_list:
-                    followers.append({
-                        'username': entry.get('value', ''),
-                        'timestamp': entry.get('timestamp', 0),
-                        'href': entry.get('href', '')
-                    })
-        return followers
-
-    def parse_following(self) -> List[Dict[str, Any]]:
-        data = self._read_json(os.path.join('connections', 'followers_and_following', 'following.json'))
-        following = []
-        if isinstance(data, dict):
-            rel = data.get('relationships_following', [])
-            for item in rel:
-                username = item.get('title', '')
-                str_list = item.get('string_list_data', [])
-                ts = str_list[0].get('timestamp', 0) if str_list else 0
-                href = str_list[0].get('href', '') if str_list else ''
-                following.append({
-                    'username': username,
-                    'timestamp': ts,
-                    'href': href
-                })
-        return following
-
-    def parse_recently_unfollowed(self) -> List[Dict[str, Any]]:
-        data = self._read_json(os.path.join('connections', 'followers_and_following', 'recently_unfollowed_profiles.json'))
-        unfollowed = []
-        if isinstance(data, list):
-            for item in data:
-                ts = item.get('timestamp', 0)
-                name = ""
-                username = ""
-                for lv in item.get('label_values', []):
-                    lbl = lv.get('label', '')
-                    val = lv.get('value', '')
-                    if '이름' in lbl and '사용자' not in lbl:
-                        name = val
-                    elif '사용자' in lbl or 'username' in lbl.lower():
-                        username = val
-                unfollowed.append({
-                    'username': username,
-                    'name': name,
-                    'timestamp': ts
-                })
-        return unfollowed
-
-    def parse_close_friends(self) -> List[str]:
-        data = self._read_json(os.path.join('connections', 'followers_and_following', 'close_friends.json'))
-        close = []
-        if isinstance(data, list):
-            for item in data:
-                for lv in item.get('label_values', []):
-                    if '사용자' in lv.get('label', ''):
-                        close.append(lv.get('value', ''))
-        return close
-
-    def parse_favorited_profiles(self) -> List[str]:
-        data = self._read_json(os.path.join('connections', 'followers_and_following', "profiles_you've_favorited.json"))
-        favs = []
-        if isinstance(data, list):
-            for item in data:
-                for lv in item.get('label_values', []):
-                    if '사용자' in lv.get('label', ''):
-                        favs.append(lv.get('value', ''))
-        return favs
 
     def _extract_posts_list(self, relative_path: str) -> List[Dict[str, Any]]:
         data = self._read_json(relative_path)
@@ -155,6 +83,7 @@ class InstaParser:
             })
         return posts
 
+    # your_instagram_activity Core Parsers
     def parse_liked_posts(self) -> List[Dict[str, Any]]:
         return self._extract_posts_list(os.path.join('your_instagram_activity', 'likes', 'liked_posts.json'))
 
@@ -223,75 +152,59 @@ class InstaParser:
             })
         return collections
 
-    def parse_videos_watched(self) -> List[Dict[str, Any]]:
-        return self._extract_posts_list(os.path.join('ads_information', 'ads_and_topics', 'videos_watched.json'))
-
-    def parse_posts_viewed(self) -> List[Dict[str, Any]]:
-        return self._extract_posts_list(os.path.join('ads_information', 'ads_and_topics', 'posts_viewed.json'))
-
     def parse_stories_viewed(self) -> List[Dict[str, Any]]:
         return self._extract_posts_list(os.path.join('your_instagram_activity', 'story_interactions', 'stories_viewed.json'))
 
     def parse_story_likes(self) -> List[Dict[str, Any]]:
         return self._extract_posts_list(os.path.join('your_instagram_activity', 'story_interactions', 'story_likes.json'))
 
+    def parse_liked_comments(self) -> List[Dict[str, Any]]:
+        data = self._read_json(os.path.join('your_instagram_activity', 'likes', 'liked_comments.json'))
+        comments = []
+        if isinstance(data, list):
+            for item in data:
+                ts = item.get('timestamp', 0)
+                for lv in item.get('label_values', []):
+                    comments.append({'timestamp': ts, 'value': lv.get('value', '')})
+        return comments
+
+    # Deprecated/Unused Connection & Ad fallbacks for ver1 compatibility
+    def parse_followers(self) -> List[Dict[str, Any]]:
+        return []
+
+    def parse_following(self) -> List[Dict[str, Any]]:
+        return []
+
+    def parse_recently_unfollowed(self) -> List[Dict[str, Any]]:
+        return []
+
+    def parse_close_friends(self) -> List[str]:
+        return []
+
+    def parse_favorited_profiles(self) -> List[str]:
+        return []
+
+    def parse_videos_watched(self) -> List[Dict[str, Any]]:
+        return []
+
+    def parse_posts_viewed(self) -> List[Dict[str, Any]]:
+        return []
+
     def parse_ad_categories(self) -> List[str]:
-        data = self._read_json(os.path.join('ads_information', 'instagram_ads_and_businesses', 'other_categories_used_to_reach_you.json'))
-        cats = []
-        if isinstance(data, dict):
-            for lv in data.get('label_values', []):
-                for v in lv.get('vec', []):
-                    if isinstance(v, dict) and 'value' in v:
-                        cats.append(v['value'])
-        return cats
+        return []
 
     def parse_advertisers(self) -> List[str]:
-        data = self._read_json(os.path.join('ads_information', 'instagram_ads_and_businesses', 'advertisers_using_your_activity_or_information.json'))
-        advertisers = []
-        if isinstance(data, dict):
-            for lv in data.get('label_values', []):
-                for v in lv.get('vec', []):
-                    if isinstance(v, dict) and 'value' in v:
-                        advertisers.append(v['value'])
-        return advertisers
+        return []
 
     def parse_locations(self) -> List[str]:
-        data = self._read_json(os.path.join('personal_information', 'information_about_you', 'locations_of_interest.json'))
-        locations = []
-        if isinstance(data, dict):
-            for lv in data.get('label_values', []):
-                if '위치' in lv.get('label', ''):
-                    for v in lv.get('vec', []):
-                        if isinstance(v, dict) and 'value' in v:
-                            locations.append(v['value'])
-        return locations
+        return []
 
     def parse_login_activity(self) -> List[Dict[str, Any]]:
-        data = self._read_json(os.path.join('security_and_login_information', 'login_and_profile_creation', 'login_activity.json'))
-        logins = []
-        if isinstance(data, dict):
-            history = data.get('account_history_login_history', [])
-            for item in history:
-                ip = ""
-                ua = ""
-                ts = 0
-                s_map = item.get('string_map_data', {})
-                if 'IP 주소' in s_map:
-                    ip = s_map['IP 주소'].get('value', '')
-                if '사용자 에이전트' in s_map:
-                    ua = s_map['사용자 에이전트'].get('value', '')
-                if '시간' in s_map:
-                    ts = s_map['시간'].get('timestamp', 0)
-                logins.append({
-                    'ip': ip,
-                    'user_agent': ua,
-                    'timestamp': ts
-                })
-        return logins
+        return []
 
 
 class InstaMemoryParser(InstaParser):
-    """Parser that reads pre-loaded JSON objects directly from memory dict."""
+    """Memory parser that reads strictly your_instagram_activity JSONs."""
     def __init__(self, files_dict: Dict[str, Any]):
         super().__init__(root_dir="")
         self.files_dict = files_dict or {}

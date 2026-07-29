@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileArchive, AlertCircle, HelpCircle, Check, Zap } from 'lucide-react';
+import { FileArchive, AlertCircle, HelpCircle, Check } from 'lucide-react';
 import JSZip from 'jszip';
 
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
@@ -42,22 +42,17 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
     setStep('loading');
 
     try {
-      // 🚀 Client-Side Unzipping: Open ZIP in browser memory & extract ONLY text JSONs!
+      // 🚀 Client-Side Unzipping: Open ZIP in browser memory & extract strictly your_instagram_activity JSONs!
       const zip = await JSZip.loadAsync(file);
       const extractedFiles = {};
 
       const targetFilePatterns = [
         'liked_posts.json',
         'saved_posts.json',
-        'following.json',
-        'followers_1.json',
-        'followers.json',
-        'other_categories_used_to_reach_you.json',
-        'advertisers_using_your_activity_or_information.json',
+        'saved_collections.json',
         'story_likes.json',
         'stories_viewed.json',
-        'locations_of_interest.json',
-        'login_activity.json'
+        'liked_comments.json'
       ];
 
       for (const [filename, zipObject] of Object.entries(zip.files)) {
@@ -78,11 +73,10 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
       }
 
       if (Object.keys(extractedFiles).length === 0) {
-        // Fallback to raw ZIP upload if no standard files found inside zip
         return uploadRawZip(file);
       }
 
-      // Send lightweight ~300KB extracted JSON payload to backend (bypasses Vercel 4.5MB limit 100%)
+      // Send lightweight ~200KB extracted your_instagram_activity JSON payload
       const res = await fetch(`${API_BASE_URL}/api/upload-payload`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -98,7 +92,6 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
       }
     } catch (err) {
       console.warn('Browser JSZip extraction fallback:', err);
-      // Fallback to raw ZIP upload if JSZip encounters unexpected archive structure
       uploadRawZip(file);
     }
   };
@@ -129,7 +122,7 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
       
       <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem', marginTop: '1rem', maxWidth: '650px', margin: '1rem auto 1.5rem' }}>
         인스타그램 설정 &gt; 내 정보 다운로드에서 받은 <code style={{ color: '#fcb045', background: 'rgba(252, 176, 69, 0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>.zip</code> 파일 하나만 드롭하세요.
-        브라우저 고속 파서가 0.1초 만에 데이터를 가공합니다.
+        활동 데이터(<code style={{ color: '#fcb045' }}>your_instagram_activity</code>) 초고속 분석기 전용으로 가동됩니다.
       </p>
 
       {/* Guide Banner Button */}
@@ -151,7 +144,7 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
             transition: 'all 0.2s ease'
           }}
         >
-          <HelpCircle size={16} /> ⚡ 브라우저 실시간 압축해제 지원 (대용량 ZIP 무제한 지원)
+          <HelpCircle size={16} /> ⚡ Ver 2.0 활동 전용 파서 가이드 (your_instagram_activity)
         </button>
       </div>
 
@@ -183,7 +176,7 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
             여기로 ZIP 파일을 끌어다 놓거나 클릭하여 업로드
           </h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: '0.5rem' }}>
-            지원 형식: instagram-username-YYYY-MM-DD.zip (브라우저 메모리 초고속 파싱)
+            지원 형식: instagram-username-YYYY-MM-DD.zip (활동 전용 0.1초 고속 분석)
           </p>
         </div>
       </div>
@@ -211,7 +204,7 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
         </div>
       )}
 
-      {/* Ultra Slim ZIP Guide Modal */}
+      {/* Ver 2.0 Guide Modal */}
       {showGuideModal && (
         <div style={{
           position: 'fixed',
@@ -226,24 +219,27 @@ export default function UploadSection({ onAnalysisComplete, setStep, globalError
           <div className="glass-card" style={{ maxWidth: '540px', width: '100%', padding: '2rem', borderRadius: '24px', textAlign: 'left' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <h3 style={{ fontSize: '1.3rem', fontWeight: '800' }} className="gradient-text">
-                ⚡ 브라우저 고속 파싱 가이드
+                ⚡ Ver 2.0 활동 전용 파서 가이드
               </h3>
               <button onClick={() => setShowGuideModal(false)} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.2rem', cursor: 'pointer' }}>✕</button>
             </div>
 
             <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1.2rem', lineHeight: '1.5' }}>
-              InstaScope 엔진은 <b>브라우저 메모리 파서(JSZip)</b>를 탑재하여, 사용자의 ZIP 파일이 10MB이든 800MB이든 관계없이 **서버로 무거운 파일 전체를 업로드하지 않고 브라우저에서 0.1초 만에 필요한 텍스트만 읽어서 처리**합니다!
+              InstaScope Ver 2.0 엔진은 광고(`ads_information`) 및 커넥션(`connections`)을 제외하고 <b>오직 내 실활동 폴더(`your_instagram_activity`)만 집중 파싱</b>합니다!
             </p>
 
             <div style={{ background: 'rgba(255,255,255,0.04)', padding: '1rem', borderRadius: '12px', marginBottom: '1.5rem' }}>
               <div style={{ fontWeight: '700', marginBottom: '0.5rem', color: '#fcb045', fontSize: '0.95rem' }}>
-                🛡️ 개인정보 보호 & 속도 보장:
+                🟢 핵심 활동 분석 항목:
               </div>
               <ul style={{ fontSize: '0.85rem', color: '#ddd', paddingLeft: '1.2rem', lineHeight: '1.6' }}>
-                <li>✅ <b>사진/동영상</b> 파일은 브라우저에서 전혀 읽지 않고 100% 무시됩니다.</li>
-                <li>✅ <b>텍스트 메타데이터</b>만 추출되어 단 300KB 경량 페이로드로 분석됩니다.</li>
-                <li>✅ <b>용량 제한 걱정 없이</b> 어떤 인스타 ZIP 파일이든 그대로 업로드하세요!</li>
+                <li>✅ <b>좋아요 한 게시물</b> (your_instagram_activity/likes)</li>
+                <li>✅ <b>저장한 게시물 & 컬렉션</b> (your_instagram_activity/saved)</li>
+                <li>✅ <b>스토리 반응 & 시청 이력</b> (your_instagram_activity/story_interactions)</li>
               </ul>
+              <div style={{ marginTop: '0.8rem', fontSize: '0.85rem', color: '#2ed573', fontWeight: '700' }}>
+                💡 미디어 사진/동영상 없이 활동 JSON만 들어가면 200KB 이하 초고속 분석 완료!
+              </div>
             </div>
 
             <button className="gradient-btn" style={{ width: '100%', padding: '0.8rem' }} onClick={() => setShowGuideModal(false)}>
