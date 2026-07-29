@@ -1,0 +1,278 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Pretendard:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --font-family: 'Pretendard', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --bg-primary: #0a0a0f;
+  --bg-card: rgba(22, 22, 34, 0.7);
+  --bg-card-hover: rgba(30, 30, 48, 0.85);
+  --border-color: rgba(255, 255, 255, 0.1);
+  --border-glow: rgba(225, 48, 108, 0.4);
+  
+  /* Instagram Gradient Palette */
+  --insta-purple: #833ab4;
+  --insta-pink: #fd1d1d;
+  --insta-orange: #fcb045;
+  --insta-gradient: linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%);
+  --insta-glow: 0 0 25px rgba(253, 29, 29, 0.35);
+
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --accent-spicy: #ff4757;
+  --accent-mild: #2ed573;
+  --accent-fire: #ff6b81;
+
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --radius-sm: 8px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family);
+  background-color: var(--bg-primary);
+  color: var(--text-main);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.6;
+  background-image: 
+    radial-gradient(circle at 15% 15%, rgba(131, 58, 180, 0.15) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(253, 29, 29, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(252, 176, 69, 0.05) 0%, transparent 60%);
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 5rem;
+}
+
+/* Glassmorphism Card */
+.glass-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  border-color: var(--border-glow);
+  box-shadow: var(--insta-glow);
+  transform: translateY(-2px);
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: var(--insta-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+/* Gradient Button */
+.gradient-btn {
+  background: var(--insta-gradient);
+  color: white;
+  font-weight: 700;
+  font-size: 1.05rem;
+  border: none;
+  border-radius: 9999px;
+  padding: 0.9rem 2.2rem;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(253, 29, 29, 0.4);
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  text-decoration: none;
+}
+
+.gradient-btn:hover {
+  transform: scale(1.04);
+  box-shadow: 0 6px 25px rgba(253, 29, 29, 0.6);
+}
+
+.gradient-btn:active {
+  transform: scale(0.98);
+}
+
+/* Badge Component */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.825rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.badge-fire {
+  background: rgba(255, 71, 87, 0.15);
+  color: #ff6b81;
+  border-color: rgba(255, 71, 87, 0.3);
+}
+
+.badge-spicy {
+  background: rgba(252, 176, 69, 0.15);
+  color: #fcb045;
+  border-color: rgba(252, 176, 69, 0.3);
+}
+
+.badge-mild {
+  background: rgba(46, 213, 115, 0.15);
+  color: #2ed573;
+  border-color: rgba(46, 213, 115, 0.3);
+}
+
+/* Header */
+.header-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 3rem;
+}
+
+.logo {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+/* Sections Grid */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 1.75rem;
+  margin-top: 2rem;
+}
+
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+/* Section Title */
+.section-header {
+  margin-top: 3.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.section-subtitle {
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  margin-top: 0.3rem;
+}
+
+/* Drag & Drop Zone */
+.dropzone {
+  border: 2px dashed rgba(253, 29, 29, 0.4);
+  border-radius: var(--radius-lg);
+  padding: 4rem 2rem;
+  text-align: center;
+  background: rgba(22, 22, 34, 0.4);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dropzone:hover, .dropzone.active {
+  border-color: #fd1d1d;
+  background: rgba(253, 29, 29, 0.08);
+  transform: scale(1.01);
+}
+
+/* Ideal Type Candidate Card */
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.25s ease;
+}
+
+.profile-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(253, 29, 29, 0.3);
+  transform: translateX(4px);
+}
+
+.avatar-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--insta-gradient);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: white;
+  flex-shrink: 0;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Recommended Post Card */
+.post-recommend-card {
+  background: rgba(30, 30, 48, 0.5);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.25s ease;
+}
+
+.post-recommend-card:hover {
+  border-color: #fcb045;
+  transform: translateY(-3px);
+}
+
+/* Tag Cloud */
+.tag-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+.tag-item {
+  padding: 0.4rem 0.9rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 0.875rem;
+  color: var(--text-main);
+  transition: all 0.2s ease;
+}
+
+.tag-item:hover {
+  background: var(--insta-gradient);
+  color: white;
+  border-color: transparent;
+}
