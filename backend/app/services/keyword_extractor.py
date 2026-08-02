@@ -51,86 +51,73 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     stories_viewed = parser.parse_stories_viewed()
     story_likes = parser.parse_story_likes()
 
-    import time
-    current_time = time.time()
-    
-    tag_scores = {}
+    tag_stats = {}
     tag_to_urls = {}
     
-    def add_tags(posts: List[Dict[str, Any]], base_weight: float):
+    def process_posts(posts: List[Dict[str, Any]], action_type: str):
         for p in posts:
-            ts = p.get('timestamp', 0)
             tags = p.get('hashtags', [])
             url = p.get('url', '')
             
-            # Time Decay Weighting
-            time_weight = 1.0
-            if ts > 0:
-                days_ago = (current_time - ts) / (60 * 60 * 24)
-                if days_ago <= 30:
-                    time_weight = 3.0
-                elif days_ago <= 180:
-                    time_weight = 1.5
-            
-            final_weight = base_weight * time_weight
-            
             for t in tags:
-                if len(t) < 2:  # 너무 짧은 태그 무시
+                if len(t) < 2:
                     continue
                 tag_clean = t.lower()
-                tag_scores[tag_clean] = tag_scores.get(tag_clean, 0.0) + final_weight
                 
-                # URL 저장 로직 추가 (추천 콘텐츠용)
+                if tag_clean not in tag_stats:
+                    tag_stats[tag_clean] = {'liked': 0, 'saved': 0, 'story': 0, 'collected': 0}
+                
+                tag_stats[tag_clean][action_type] += 1
+                
                 if url:
                     if tag_clean not in tag_to_urls:
                         tag_to_urls[tag_clean] = set()
-                    if len(tag_to_urls[tag_clean]) < 10:  # 메모리 방지를 위해 태그당 최대 10개만 저장
+                    if len(tag_to_urls[tag_clean]) < 10:
                         tag_to_urls[tag_clean].add(url)
 
-    # 가중치 (1-Pick과 동일하게 적용)
-    add_tags(stories_viewed, 1.0)
-    add_tags(liked, 2.0)
-    add_tags(saved, 3.0)
-    add_tags(story_likes, 4.0)
+    process_posts(liked, 'liked')
+    process_posts(saved, 'saved')
+    process_posts(stories_viewed, 'story')
+    process_posts(story_likes, 'story')
 
-    # === [Collection Cluster Density Analysis] ===
-    secret_picks = []
     try:
         collections = parser.parse_saved_collections()
         for col in collections:
             col_tags = col.get('hashtags', [])
-            if not col_tags:
-                continue
-                
-            from collections import Counter
-            col_counter = Counter([t.lower() for t in col_tags if len(t) >= 2])
-            if not col_counter:
-                continue
-                
-            top_tag, top_count = col_counter.most_common(1)[0]
-            density = top_count / len(col_tags)
-            
-            # Stop words
-            STOP_WORDS = {"일상", "소통", "맞팔", "선팔", "좋아요반사", "f4f", "ootd", "좋아요", "팔로우"}
-            
-            # If density is >= 30%, it is a highly intentional cluster
-            if density >= 0.3 and top_tag not in STOP_WORDS:
-                secret_picks.append(top_tag)
+            for t in col_tags:
+                if len(t) < 2:
+                    continue
+                tag_clean = t.lower()
+                if tag_clean not in tag_stats:
+                    tag_stats[tag_clean] = {'liked': 0, 'saved': 0, 'story': 0, 'collected': 0}
+                tag_stats[tag_clean]['collected'] += 1
     except Exception as e:
         print(f"Collection parse error: {e}")
 
-    # === [START_DYNAMIC_ROUTING_LOGIC] ===
-    # [작성 조건 및 가이드라인]
-    # 1. 카테고리 사전 정의: 애니메이션, 게임, 아이돌 등 특정 서브컬처 카테고리 키워드들을 정의하세요.
-    # 2. 가중치 점수 합산: tag_scores를 순회하면서, 어떤 카테고리의 점수(Affinity Score)가 가장 높은지 계산하세요.
-    # 3. 임계값(Threshold) 판별: 1위 카테고리의 점수가 일정 기준치를 넘으면, 해당 취향에 맞춘 특화된 검색 쿼리 리스트를 반환하도록 if/elif 라우팅 로직을 만드세요.
-    # 4. 폴백(Fallback) 및 안전성 유지: 특화 취향이 아니면 기본 sfw_tags를 사용하게 하고, 민감한(19금) 단어는 반드시 기존의 get_safe_tag()를 타서 건전한 단어로 우회되도록 방어 코드를 남겨두세요. 직접적인 19금 검색이 이루어지지 않도록 주의해야 합니다.
-
-   # --- [데이터 전처리 및 분류 파트] ---
-
+    # === [다층적 상호작용 기반 '찐 취향(True Affinity)' 산출] ===
+    tag_scores = {}
     STOP_WORDS = {"일상", "소통", "맞팔", "선팔", "좋아요반사", "f4f", "ootd", "좋아요", "팔로우"}
-    # 기존 파일 최상단에 있는 HIDDEN_MAPPING 키워드들을 명시적 숨겨진(Hidden) 키워드로 활용합니다.
+    
+    for tag, stats in tag_stats.items():
+        if tag in STOP_WORDS:
+            continue
+            
+        # 기본 발생량 (볼륨)
+        base_volume = stats['liked'] + stats['story'] + stats['saved'] + stats['collected']
+        
+        # 겹칠수록 폭발하는 다층적 가중치 공식 (저장, 컬렉션 등 높은 관여도에 가중치)
+        # 단순히 좋아요만 누른 경우 multiplier는 1.0
+        multiplier = (1 + stats['saved'] * 3.0) * (1 + stats['collected'] * 5.0)
+        
+        tag_scores[tag] = base_volume * multiplier
 
+    # 최상위 점수 태그들을 Secret Picks로 자동 선정
+    sorted_by_affinity = sorted(tag_scores.items(), key=lambda x: x[1], reverse=True)
+    secret_picks = [t[0] for t in sorted_by_affinity[:10]]
+
+
+    # --- [데이터 전처리 및 분류 파트] ---
+    # 기존 파일 최상단에 있는 HIDDEN_MAPPING 키워드들을 명시적 숨겨진(Hidden) 키워드로 활용합니다.
     EXPLICIT_HIDDEN_KEYWORDS = set(HIDDEN_MAPPING.keys())
     IMPLICIT_HIDDEN_KEYWORDS = {
         "반캠", "직캠", "섹시", "요가", "비키니", "룩북", "화보", "바디프로필",
@@ -379,15 +366,20 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         """
         # --- HIDDEN 쿼리 생성 (19금 포함, 5~10개) ---
         search_hidden_queries = []
-        combined_hidden = list(secret_picks)
+        combined_hidden = list(secret_picks[:2]) # 전체 최상위 찐 취향은 2개만 할당하여 공간 확보
         
-        # 1. 19금/민감한 키워드(explicit) 및 잠재적(implicit) 키워드를 모두 활용
+        # 1. 19금/민감한 키워드(explicit) 및 잠재적(implicit) 키워드를 우선순위로 활용
         all_hidden_tags = list(implicit_hidden_tags.items()) + list(explicit_hidden_tags.items())
         if all_hidden_tags:
             sorted_hidden = sorted(all_hidden_tags, key=lambda x: x[1], reverse=True)
             for tag, score in sorted_hidden:
                 if tag not in combined_hidden:
                     combined_hidden.append(tag)
+                    
+        # 2. 남은 secret_picks 채워넣기
+        for tag in secret_picks[2:]:
+            if tag not in combined_hidden:
+                combined_hidden.append(tag)
         
         # 2. 숨겨진 태그가 부족할 경우, 일반 태그(SFW) 중에서 차출
         sorted_general = sorted(sfw_tags.items(), key=lambda x: x[1], reverse=True)
