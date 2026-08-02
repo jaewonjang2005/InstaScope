@@ -269,56 +269,36 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         # --- [최종 검색어 생성 및 폴백 파트] ---
 
     def generate_final_queries(
-        route: str,
         explicit_hidden_tags: Dict[str, int],
         implicit_hidden_tags: Dict[str, int],
         sfw_tags: Dict[str, int],
         num_queries: int = 5
-    ) -> List[str]:
+    ) -> Tuple[List[str], List[str]]:
         """
-        라우팅 결과와 분류된 태그들을 바탕으로, 최종적인 검색어 리스트를 생성합니다.
-        HIDDEN 라우팅 시, 강력한 19금 검색어를 우선적으로 사용합니다.
+        분류된 태그들을 바탕으로 SFW 및 HIDDEN 검색어 리스트를 각각 생성합니다.
         """
-        final_queries = []
-        if route == "HIDDEN":
-            # '숨겨진 취향(Hidden)' 콘텐츠 파이프라인
-            print("라우팅: 숨겨진 취향(Hidden) 콘텐츠 파이프라인을 탑니다.")
-            
-            # 1. 사용자의 태그에서 직접 추출한 잠재적 키워드 (예: '직캠', '섹시')
+        # --- HIDDEN 쿼리 생성 ---
+        search_hidden_queries = []
+        if implicit_hidden_tags or explicit_hidden_tags:
             sorted_implicit = sorted(implicit_hidden_tags.items(), key=lambda x: x[1], reverse=True)
             user_implicit_queries = [tag for tag, score in sorted_implicit]
-
-            # 2. 강력한 19금 검색어 리스트와 사용자 키워드를 조합
-            # 사용자의 취향을 반영하면서도, 검색 성공률을 높이기 위해 강력한 검색어를 우선적으로 배치
             combined_queries = POWERFUL_ADULT_QUERIES + user_implicit_queries
-            
-            # 3. 중복 제거 및 상위 num_queries개 선택
-            final_queries = list(dict.fromkeys(combined_queries))[:num_queries]
+            search_hidden_queries = list(dict.fromkeys(combined_queries))[:num_queries]
 
-        elif route == "SFW":
-            # '맞춤(SFW) 콘텐츠' 파이프라인 (기존 로직 유지)
-            print("라우팅: 동적 토픽 파이프라인을 탑니다.")
-            sorted_general = sorted(sfw_tags.items(), key=lambda x: x[1], reverse=True)
-            if sorted_general:
-                top_keywords = [tag for tag, score in sorted_general[:3]]
-                dynamic_topic_query = " ".join(top_keywords)
-                print(f"👉 발견된 유저만의 동적 토픽: [{dynamic_topic_query}]")
-                final_queries = [dynamic_topic_query] + [tag for tag, score in sorted_general[:num_queries-1]]
-                final_queries = list(dict.fromkeys(final_queries))[:num_queries]
-            else:
-                final_queries = []
+        # --- SFW 쿼리 생성 ---
+        search_sfw_queries = []
+        sorted_general = sorted(sfw_tags.items(), key=lambda x: x[1], reverse=True)
+        if sorted_general:
+            top_keywords = [tag for tag, score in sorted_general[:3]]
+            dynamic_topic_query = " ".join(top_keywords)
+            sfw_list = [dynamic_topic_query] + [tag for tag, score in sorted_general[:num_queries-1]]
+            search_sfw_queries = list(dict.fromkeys(sfw_list))[:num_queries]
 
-        else: # "FALLBACK"
-            # '폴백' 파이프라인 (기존 로직 유지)
-            print("라우팅: 폴백 파이프라인을 탑니다. 기본 검색어를 사용합니다.")
-            final_queries = ["인기 있는 이미지", "추천 콘텐츠"]
+        # --- 폴백 안전장치 ---
+        if not search_sfw_queries and not search_hidden_queries:
+            search_sfw_queries = ["인기 있는 이미지", "추천 콘텐츠"]
 
-        # 최종 안전장치 (기존 로직 유지)
-        if not final_queries:
-            print("경고: 생성된 검색어가 없습니다. 기본 검색어로 폴백합니다.")
-            return ["인기 있는 이미지"]
-
-        return final_queries
+        return search_sfw_queries, search_hidden_queries
 
     # --- [사용 예시] ---
     if __name__ == '__main__':
@@ -352,19 +332,9 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
 
     # --- [실제 실행 로직 및 기존 API 포맷에 맞춘 Return 매핑] ---
     explicit_hidden, implicit_hidden, sfw = preprocess_and_classify_tags(tag_scores)
-    affinity_scores = calculate_affinity_scores(explicit_hidden, implicit_hidden, sfw)
-    route = route_by_affinity(affinity_scores)
     
-    final_queries = generate_final_queries(route, explicit_hidden, implicit_hidden, sfw)
+    search_sfw_queries, search_hidden_queries = generate_final_queries(explicit_hidden, implicit_hidden, sfw)
     
-    # 프론트엔드 호환성을 위해 SFW와 Hidden 쿼리를 분리
-    search_sfw_queries = []
-    search_hidden_queries = []
-    if route == "HIDDEN":
-        search_hidden_queries = final_queries
-    else:
-        search_sfw_queries = final_queries
-
     # 화면에 보여주기 위한 raw tags 정렬
     sorted_sfw = sorted(sfw.items(), key=lambda x: x[1], reverse=True)
     sorted_hidden = sorted(list(explicit_hidden.items()) + list(implicit_hidden.items()), key=lambda x: x[1], reverse=True)
