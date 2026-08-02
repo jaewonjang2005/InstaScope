@@ -87,6 +87,56 @@ class InstaParser:
             })
         return posts
 
+    def _extract_collections(self, relative_path: str) -> List[Dict[str, Any]]:
+        data = self._read_json(relative_path)
+        collections = []
+        
+        # It's usually a list of dicts directly
+        if not isinstance(data, list):
+            # Sometimes wrapped in a dict
+            if isinstance(data, dict):
+                for v in data.values():
+                    if isinstance(v, list):
+                        data = v
+                        break
+            if not isinstance(data, list):
+                return collections
+
+        for col in data:
+            name = "Unknown Collection"
+            # Extract name
+            label_values = col.get('label_values', [])
+            for lv in label_values:
+                if lv.get('label') == '이름':
+                    name = lv.get('value', '')
+                    break
+            
+            # Extract media items inside this collection
+            media_list = col.get('media', col.get('string_list_data', []))
+            if not media_list:
+                for v in col.values():
+                    if isinstance(v, list):
+                        media_list = v
+                        break
+            
+            # Re-use the existing post parsing logic for media inside the collection
+            # To do this safely, we mimic a structure that _extract_posts_list could parse if needed,
+            # or we just parse hashtags manually here. 
+            hashtags = []
+            for item in media_list:
+                # search for hashtags in the item
+                item_str = json.dumps(item, ensure_ascii=False)
+                tags = re.findall(r'#(\w+)', item_str)
+                hashtags.extend(tags)
+                
+            collections.append({
+                'name': name,
+                'hashtags': hashtags,
+                'count': len(media_list)
+            })
+            
+        return collections
+
     # your_instagram_activity Core Parsers
     def parse_liked_posts(self) -> List[Dict[str, Any]]:
         return self._extract_posts_list(os.path.join('your_instagram_activity', 'likes', 'liked_posts.json'))
@@ -99,6 +149,9 @@ class InstaParser:
 
     def parse_story_likes(self) -> List[Dict[str, Any]]:
         return self._extract_posts_list(os.path.join('your_instagram_activity', 'story_interactions', 'story_likes.json'))
+
+    def parse_saved_collections(self) -> List[Dict[str, Any]]:
+        return self._extract_collections(os.path.join('your_instagram_activity', 'saved', 'saved_collections.json'))
 
 class InstaMemoryParser(InstaParser):
     """Memory parser that reads strictly your_instagram_activity JSONs."""

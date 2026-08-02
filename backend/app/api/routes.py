@@ -29,7 +29,8 @@ def extract_and_parse_zip(zip_path: str) -> dict:
         'your_instagram_activity/likes/liked_posts.json',
         'your_instagram_activity/saved/saved_posts.json',
         'your_instagram_activity/story_interactions/stories_viewed.json',
-        'your_instagram_activity/story_interactions/story_likes.json'
+        'your_instagram_activity/story_interactions/story_likes.json',
+        'your_instagram_activity/saved/saved_collections.json'
     ]
     
     extracted_data = {}

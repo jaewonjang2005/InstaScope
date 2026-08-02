@@ -43,22 +43,64 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     stories_viewed = parser.parse_stories_viewed()
     story_likes = parser.parse_story_likes()
 
+    import time
+    current_time = time.time()
+    
     tag_scores = {}
     
-    def add_tags(posts: List[Dict[str, Any]], weight: int):
+    def add_tags(posts: List[Dict[str, Any]], base_weight: float):
         for p in posts:
+            ts = p.get('timestamp', 0)
             tags = p.get('hashtags', [])
+            
+            # Time Decay Weighting
+            time_weight = 1.0
+            if ts > 0:
+                days_ago = (current_time - ts) / (60 * 60 * 24)
+                if days_ago <= 30:
+                    time_weight = 3.0
+                elif days_ago <= 180:
+                    time_weight = 1.5
+            
+            final_weight = base_weight * time_weight
+            
             for t in tags:
                 if len(t) < 2:  # 너무 짧은 태그 무시
                     continue
                 tag_clean = t.lower()
-                tag_scores[tag_clean] = tag_scores.get(tag_clean, 0) + weight
+                tag_scores[tag_clean] = tag_scores.get(tag_clean, 0.0) + final_weight
 
     # 가중치 (1-Pick과 동일하게 적용)
-    add_tags(stories_viewed, 1)
-    add_tags(liked, 2)
-    add_tags(saved, 3)
-    add_tags(story_likes, 4)
+    add_tags(stories_viewed, 1.0)
+    add_tags(liked, 2.0)
+    add_tags(saved, 3.0)
+    add_tags(story_likes, 4.0)
+
+    # === [Collection Cluster Density Analysis] ===
+    secret_picks = []
+    try:
+        collections = parser.parse_saved_collections()
+        for col in collections:
+            col_tags = col.get('hashtags', [])
+            if not col_tags:
+                continue
+                
+            from collections import Counter
+            col_counter = Counter([t.lower() for t in col_tags if len(t) >= 2])
+            if not col_counter:
+                continue
+                
+            top_tag, top_count = col_counter.most_common(1)[0]
+            density = top_count / len(col_tags)
+            
+            # Stop words
+            STOP_WORDS = {"일상", "소통", "맞팔", "선팔", "좋아요반사", "f4f", "ootd", "좋아요", "팔로우"}
+            
+            # If density is >= 30%, it is a highly intentional cluster
+            if density >= 0.3 and top_tag not in STOP_WORDS:
+                secret_picks.append(top_tag)
+    except Exception as e:
+        print(f"Collection parse error: {e}")
 
     # === [START_DYNAMIC_ROUTING_LOGIC] ===
     # [작성 조건 및 가이드라인]
@@ -261,9 +303,10 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         # --- [최종 검색어 생성 및 폴백 파트] ---
 
     def generate_final_queries(
-        explicit_hidden_tags: Dict[str, int],
-        implicit_hidden_tags: Dict[str, int],
-        sfw_tags: Dict[str, int],
+        explicit_hidden_tags: Dict[str, float],
+        implicit_hidden_tags: Dict[str, float],
+        sfw_tags: Dict[str, float],
+        secret_picks: List[str] = [],
         num_queries: int = 5
     ) -> Tuple[List[str], List[str]]:
         """
@@ -273,7 +316,12 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         search_hidden_queries = []
         combined_hidden = []
         
-        # 1. 19금/민감한 키워드가 있다면 해당 키워드 자체를 활용하여 맥락에 맞게 검색어 조합
+        # 1. Secret Picks (사용자 정의 컬렉션에서 밀도로 추출된 핵심 은밀 취향) 최우선 추가
+        for pick in secret_picks:
+            combined_hidden.append(pick)
+            combined_hidden.append(f"{pick} 추천")
+
+        # 2. 19금/민감한 키워드가 있다면 해당 키워드 자체를 활용하여 맥락에 맞게 검색어 조합
         all_hidden_tags = list(implicit_hidden_tags.items()) + list(explicit_hidden_tags.items())
         if all_hidden_tags:
             sorted_hidden = sorted(all_hidden_tags, key=lambda x: x[1], reverse=True)
@@ -313,22 +361,19 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
 
         # --- 시나리오 1: HIDDEN 라우팅 ---
         print("===== 시나리오 1: HIDDEN 라우팅 =====")
-        route_1 = "HIDDEN"
-        final_queries_1 = generate_final_queries(route_1, sample_explicit_hidden, sample_implicit_hidden, sample_sfw_tags)
+        final_queries_1 = generate_final_queries(sample_explicit_hidden, sample_implicit_hidden, sample_sfw_tags, ["ITZY"])
         print(f"최종 검색어: {final_queries_1}\n")
-        # 예상 출력: ['직캠', '섹시', '요가', '야한 동영상', '섹시 브라']
+        # 예상 출력: ['ITZY', 'ITZY 추천', '직캠 모델', '직캠 화보', '직캠']
 
         # --- 시나리오 2: SFW 라우팅 ---
         print("===== 시나리오 2: SFW 라우팅 =====")
-        route_2 = "SFW"
-        final_queries_2 = generate_final_queries(route_2, sample_explicit_hidden, sample_implicit_hidden, sample_sfw_tags)
+        final_queries_2 = generate_final_queries(sample_explicit_hidden, sample_implicit_hidden, sample_sfw_tags)
         print(f"최종 검색어: {final_queries_2}\n")
         # 예상 출력: ['게임', '캠핑']
 
         # --- 시나리오 3: FALLBACK 라우팅 ---
         print("===== 시나리오 3: FALLBACK 라우팅 =====")
-        route_3 = "FALLBACK"
-        final_queries_3 = generate_final_queries(route_3, {}, {}, {})
+        final_queries_3 = generate_final_queries({}, {}, {})
         print(f"최종 검색어: {final_queries_3}\n")
         # 예상 출력: ['인기 있는 이미지', '추천 콘텐츠']
             
@@ -337,7 +382,7 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     # --- [실제 실행 로직 및 기존 API 포맷에 맞춘 Return 매핑] ---
     explicit_hidden, implicit_hidden, sfw = preprocess_and_classify_tags(tag_scores)
     
-    search_sfw_queries, search_hidden_queries = generate_final_queries(explicit_hidden, implicit_hidden, sfw)
+    search_sfw_queries, search_hidden_queries = generate_final_queries(explicit_hidden, implicit_hidden, sfw, secret_picks)
     
     # 화면에 보여주기 위한 raw tags 정렬
     sorted_sfw = sorted(sfw.items(), key=lambda x: x[1], reverse=True)
