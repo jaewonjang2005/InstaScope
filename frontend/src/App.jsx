@@ -27,7 +27,7 @@ export default function App() {
           borderTop: '1px solid rgba(255,255,255,0.05)',
           marginTop: '4rem'
         }}>
-          Insta 1-Pick — 당신의 진짜 최애를 찾아드립니다 © 2026.
+          Insta Taste Recommender — 당신의 숨겨진 취향을 찾아드립니다 © 2026.
         </footer>
       </div>
     </BrowserRouter>

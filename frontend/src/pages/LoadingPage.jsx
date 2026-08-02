@@ -97,7 +97,7 @@ export default function LoadingPage() {
         <Search size={40} color="var(--primary-color)" className="pulse-anim" />
       </div>
       
-      <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>무의식의 세계를 탐색하는 중...</h2>
+      <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>당신의 취향을 분석하고 추천하는 중...</h2>
       <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>{statusText}</p>
 
       <div style={{

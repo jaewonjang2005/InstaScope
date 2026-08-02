@@ -36,11 +36,11 @@ export default function UploadPage() {
   return (
     <div className="card fade-in" style={{ maxWidth: '600px', margin: '2rem auto', textAlign: 'center' }}>
       <h2 style={{ fontSize: '1.8rem', marginBottom: '1rem' }}>
-        당신의 무의식이 선택한 <span className="highlight">인스타 1픽</span>은?
+        당신의 숨겨진 <span className="highlight">인스타 취향</span>은?
       </h2>
       <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', lineHeight: '1.6' }}>
         좋아요, 저장, 스토리 시청 기록을 교차 분석하여<br />
-        당신이 가장 집착(?)하는 진짜 최애 계정을 찾아드립니다.<br />
+        당신이 가장 끌리는 맞춤형 콘텐츠를 실시간으로 찾아드립니다.<br />
         <span style={{ fontSize: '0.8rem', opacity: 0.7 }}>* 분석 후 모든 데이터는 즉시 폐기됩니다.</span>
       </p>
 
@@ -109,7 +109,7 @@ export default function UploadPage() {
         onClick={handleUpload}
         disabled={!file || isUploading}
       >
-        {isUploading ? '분석 준비 중...' : '나의 1픽 찾기 시작 🔥'}
+        {isUploading ? '분석 준비 중...' : '나의 취향 분석 시작 🔥'}
       </button>
     </div>
   );
