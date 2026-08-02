@@ -95,7 +95,6 @@ async def upload_chunk(
                         os.remove(part_path)
 
             # Stream required JSONs directly from ZIP
-        if is_last_chunk:
             extracted_data = extract_and_parse_zip(merged_zip_path)
             os.remove(merged_zip_path)
 
