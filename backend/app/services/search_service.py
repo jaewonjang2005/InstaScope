@@ -12,7 +12,8 @@ def is_valid_instagram_url(url: str) -> bool:
             "User-Agent": "Mozilla/5.0"
         }
         # 인스타그램은 HEAD 요청에 대해 405 Method Not Allowed를 반환하는 경우가 있으므로 GET을 사용하되 타임아웃을 짧게 둡니다.
-        response = requests.get(url, headers=headers, timeout=3, allow_redirects=True)
+        # Vercel 환경에서 timeout 방지를 위해 최대 1.5초로 제한
+        response = requests.get(url, headers=headers, timeout=1.5, allow_redirects=True)
         
         # 404면 삭제됨
         if response.status_code == 404:
@@ -47,24 +48,37 @@ def search_instagram(query: str, max_results: int = 3) -> list:
     
     try:
         ddgs = DDGS()
-        # DDGS.text() returns a generator
+        # Vercel Timeout 방지를 위해 최소한만 가져옴
+        candidates = []
         for r in ddgs.text(search_query, max_results=max_results):
             url = r.get("href", "")
             title = r.get("title", "")
             body = r.get("body", "")
             
-            # 인스타그램 프로필이나 게시물 링크만 필터링 (가끔 이상한 링크가 섞일 수 있음)
             if "instagram.com" in url:
-                # 비공개/삭제 계정 필터링
-                if is_valid_instagram_url(url):
-                    results.append({
-                        "title": title.replace(" - Instagram", "").strip(),
-                        "url": url,
-                        "snippet": body[:100] + "..." if len(body) > 100 else body
-                    })
+                candidates.append({
+                    "title": title.replace(" - Instagram", "").strip(),
+                    "url": url,
+                    "snippet": body[:100] + "..." if len(body) > 100 else body
+                })
         
-        # DDG API 레이트 리밋(Too Many Requests) 방지를 위한 짧은 딜레이
-        time.sleep(1)
+        # ThreadPoolExecutor를 이용한 병렬 유효성 검사 (빠른 속도 보장)
+        import concurrent.futures
+        
+        def validate_candidate(candidate):
+            if is_valid_instagram_url(candidate["url"]):
+                return candidate
+            return None
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            validated = list(executor.map(validate_candidate, candidates))
+            
+        for v in validated:
+            if v is not None:
+                results.append(v)
+                if len(results) >= max_results:
+                    break
+                    
         return results
     except Exception as e:
         print(f"Error searching DuckDuckGo for {search_query}: {e}")
@@ -77,13 +91,24 @@ def get_recommendations_for_keywords(keywords: list, max_per_keyword: int = 2) -
     all_recommendations = []
     seen_urls = set()
     
-    for kw in keywords:
-        search_res = search_instagram(kw, max_results=max_per_keyword)
+    import concurrent.futures
+    
+    if not keywords:
+        return []
+        
+    def fetch_for_keyword(kw):
+        res_list = search_instagram(kw, max_results=max_per_keyword)
+        for r in res_list:
+            r["matched_keyword"] = kw
+        return res_list
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(keywords))) as executor:
+        results_list = list(executor.map(fetch_for_keyword, keywords))
+
+    for search_res in results_list:
         for res in search_res:
             if res["url"] not in seen_urls:
                 seen_urls.add(res["url"])
-                # 태그 정보 추가
-                res["matched_keyword"] = kw
                 all_recommendations.append(res)
                 
     return all_recommendations

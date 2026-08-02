@@ -95,32 +95,32 @@ async def upload_chunk(
                         os.remove(part_path)
 
             # Stream required JSONs directly from ZIP
+        if is_last_chunk:
             extracted_data = extract_and_parse_zip(merged_zip_path)
             os.remove(merged_zip_path)
 
-            # Parse and analyze
+            # Parse and analyze (Fast)
             parser = InstaMemoryParser(extracted_data)
             keywords_result = extract_taste_keywords(parser)
             
-            # Search top 2 keywords for SFW and Hidden to avoid Vercel timeout
-            sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:2], max_per_keyword=3)
-            hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:2], max_per_keyword=3)
-
-            # Store the result
+            job_id = create_job()
+            
+            # Search top 1 keyword for SFW and Hidden to fit within Vercel 10s limit
+            sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:1], max_per_keyword=4)
+            hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:1], max_per_keyword=4)
+            
             analysis_result = {
                 "keywords": keywords_result,
                 "sfw_recommendations": sfw_recs,
                 "hidden_recommendations": hidden_recs
             }
-
-            job_id = create_job()
             save_analysis_result(job_id, analysis_result)
+            
+            background_tasks.add_task(cleanup_expired_jobs)
 
             # Cleanup
             del CHUNK_STORAGE[upload_id]
             shutil.rmtree(temp_dir)
-
-            background_tasks.add_task(cleanup_expired_jobs)
 
             return {"status": "success", "job_id": job_id, "completed": True}
 
@@ -138,17 +138,17 @@ async def upload_payload(payload: JsonPayload, background_tasks: BackgroundTasks
     try:
         parser = InstaMemoryParser(payload.files)
         keywords_result = extract_taste_keywords(parser)
+        job_id = create_job()
         
-        sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:2], max_per_keyword=3)
-        hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:2], max_per_keyword=3)
+        # Search top 1 keyword for SFW and Hidden to fit within Vercel 10s limit
+        sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:1], max_per_keyword=4)
+        hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:1], max_per_keyword=4)
         
         analysis_result = {
             "keywords": keywords_result,
             "sfw_recommendations": sfw_recs,
             "hidden_recommendations": hidden_recs
         }
-
-        job_id = create_job()
         save_analysis_result(job_id, analysis_result)
         background_tasks.add_task(cleanup_expired_jobs)
 
@@ -174,17 +174,17 @@ async def upload_zip(background_tasks: BackgroundTasks, file: UploadFile = File(
 
         parser = InstaMemoryParser(extracted_data)
         keywords_result = extract_taste_keywords(parser)
+        job_id = create_job()
         
-        sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:2], max_per_keyword=3)
-        hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:2], max_per_keyword=3)
+        # Search top 1 keyword for SFW and Hidden to fit within Vercel 10s limit
+        sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:1], max_per_keyword=4)
+        hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:1], max_per_keyword=4)
         
         analysis_result = {
             "keywords": keywords_result,
             "sfw_recommendations": sfw_recs,
             "hidden_recommendations": hidden_recs
         }
-
-        job_id = create_job()
         save_analysis_result(job_id, analysis_result)
         background_tasks.add_task(cleanup_expired_jobs)
 
