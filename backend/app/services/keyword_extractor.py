@@ -292,11 +292,10 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
 
         # --- SFW 쿼리 생성 ---
         search_sfw_queries = []
-        sorted_general = sorted(sfw_tags.items(), key=lambda x: x[1], reverse=True)
         if sorted_general:
-            top_keywords = [tag for tag, score in sorted_general[:3]]
-            dynamic_topic_query = " ".join(top_keywords)
-            sfw_list = [dynamic_topic_query] + [tag for tag, score in sorted_general[:num_queries-1]]
+            top_keyword = sorted_general[0][0] # 제1의 취향
+            # 제1의 취향에만 100% 집중하도록 쿼리 생성
+            sfw_list = [top_keyword, f"인스타 {top_keyword}"] 
             search_sfw_queries = list(dict.fromkeys(sfw_list))[:num_queries]
 
         # --- 폴백 안전장치 ---
