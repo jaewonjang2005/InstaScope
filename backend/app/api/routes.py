@@ -20,10 +20,11 @@ CHUNK_STORAGE: Dict[str, Dict[str, Any]] = {}
 class JsonPayload(BaseModel):
     files: dict
 
-def extract_and_parse_zip(zip_path: str) -> dict:
+def extract_and_parse_zip(zip_path: str, output_dir: str) -> str:
     """
-    Extracts only the required JSON files from the ZIP archive into memory,
-    bypassing the need to extract everything to disk (fixes Vercel 500MB tmp limit).
+    Extracts only the required JSON files from the ZIP archive to disk,
+    bypassing the need to extract everything to disk (fixes Vercel 500MB tmp limit)
+    and avoiding OOM memory limits by reading one file at a time.
     """
     required_files = [
         'your_instagram_activity/likes/liked_posts.json',
@@ -33,28 +34,20 @@ def extract_and_parse_zip(zip_path: str) -> dict:
         'your_instagram_activity/saved/saved_collections.json'
     ]
     
-    extracted_data = {}
-    
     try:
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            # Find the actual path prefixes in the zip (sometimes it's nested)
             file_names = zip_ref.namelist()
-            
             for req_file in required_files:
-                # Find matching file in zip (case-insensitive, ignoring root folder name)
                 matching_files = [f for f in file_names if f.lower().endswith(req_file.lower())]
                 if matching_files:
-                    with zip_ref.open(matching_files[0]) as f:
-                        try:
-                            # Read and decode
-                            content = f.read().decode('utf-8', errors='ignore')
-                            extracted_data[req_file] = json.loads(content)
-                        except Exception as e:
-                            print(f"Error reading {req_file} from zip: {e}")
+                    target_path = os.path.join(output_dir, req_file)
+                    os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                    with zip_ref.open(matching_files[0]) as source, open(target_path, 'wb') as target:
+                        shutil.copyfileobj(source, target)
     except Exception as e:
         raise Exception(f"Failed to process zip file: {e}")
         
-    return extracted_data
+    return output_dir
 
 @router.post("/upload-chunk")
 async def upload_chunk(
@@ -94,12 +87,12 @@ async def upload_chunk(
                             shutil.copyfileobj(part_file, merged_file)
                         os.remove(part_path)
 
-            # Stream required JSONs directly from ZIP
-            extracted_data = extract_and_parse_zip(merged_zip_path)
+            # Stream required JSONs directly from ZIP to disk
+            extract_and_parse_zip(merged_zip_path, temp_dir)
             os.remove(merged_zip_path)
 
-            # Parse and analyze (Fast)
-            parser = InstaMemoryParser(extracted_data)
+            # Parse and analyze (Low Memory)
+            parser = InstaParser(temp_dir)
             keywords_result = extract_taste_keywords(parser)
             
             job_id = create_job()
@@ -167,11 +160,10 @@ async def upload_zip(background_tasks: BackgroundTasks, file: UploadFile = File(
         with open(zip_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        extracted_data = extract_and_parse_zip(zip_path)
+        extract_and_parse_zip(zip_path, temp_dir)
         os.remove(zip_path)
-        shutil.rmtree(temp_dir)
 
-        parser = InstaMemoryParser(extracted_data)
+        parser = InstaParser(temp_dir)
         keywords_result = extract_taste_keywords(parser)
         job_id = create_job()
         
@@ -186,6 +178,9 @@ async def upload_zip(background_tasks: BackgroundTasks, file: UploadFile = File(
         }
         save_analysis_result(job_id, analysis_result)
         background_tasks.add_task(cleanup_expired_jobs)
+
+        # Cleanup
+        shutil.rmtree(temp_dir)
 
         return {"status": "success", "job_id": job_id}
 
