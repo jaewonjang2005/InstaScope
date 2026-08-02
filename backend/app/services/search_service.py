@@ -35,80 +35,25 @@ def is_valid_instagram_url(url: str) -> bool:
         print(f"URL validation error for {url}: {e}")
         return False
 
-def search_instagram(query: str, max_results: int = 3) -> list:
-    """
-    DuckDuckGo 검색을 이용해 site:instagram.com {query} 형태로
-    인스타그램 게시물 링크와 제목을 스크래핑하는 함수.
-    """
-    if not query:
-        return []
-        
-    search_query = f"site:instagram.com {query}"
-    results = []
-    
-    try:
-        ddgs = DDGS()
-        # Vercel Timeout 방지를 위해 최소한만 가져옴
-        candidates = []
-        for r in ddgs.text(search_query, max_results=max_results):
-            url = r.get("href", "")
-            title = r.get("title", "")
-            body = r.get("body", "")
-            
-            if "instagram.com" in url:
-                candidates.append({
-                    "title": title.replace(" - Instagram", "").strip(),
-                    "url": url,
-                    "snippet": body[:100] + "..." if len(body) > 100 else body
-                })
-        
-        # ThreadPoolExecutor를 이용한 병렬 유효성 검사 (빠른 속도 보장)
-        import concurrent.futures
-        
-        def validate_candidate(candidate):
-            if is_valid_instagram_url(candidate["url"]):
-                return candidate
-            return None
-
-        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
-            validated = list(executor.map(validate_candidate, candidates))
-            
-        for v in validated:
-            if v is not None:
-                results.append(v)
-                if len(results) >= max_results:
-                    break
-                    
-        return results
-    except Exception as e:
-        print(f"Error searching DuckDuckGo for {search_query}: {e}")
-        return []
-
 def get_recommendations_for_keywords(keywords: list, max_per_keyword: int = 2) -> list:
     """
-    주어진 키워드 리스트에 대해 각각 검색을 수행하고 결과를 병합하여 리턴.
+    키워드를 기반으로 인스타그램 해시태그 검색 링크를 생성하여 반환합니다.
+    (Vercel 서버리스 환경에서 C-Extension 충돌 및 타임아웃을 방지하기 위해 크롤링 대신 직접 링크 생성)
     """
     all_recommendations = []
-    seen_urls = set()
-    
-    import concurrent.futures
     
     if not keywords:
         return []
         
-    def fetch_for_keyword(kw):
-        res_list = search_instagram(kw, max_results=max_per_keyword)
-        for r in res_list:
-            r["matched_keyword"] = kw
-        return res_list
-
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max(1, len(keywords))) as executor:
-        results_list = list(executor.map(fetch_for_keyword, keywords))
-
-    for search_res in results_list:
-        for res in search_res:
-            if res["url"] not in seen_urls:
-                seen_urls.add(res["url"])
-                all_recommendations.append(res)
+    for kw in keywords:
+        # 안전한 키워드로 해시태그 생성
+        safe_kw = kw.replace(" ", "")
+        
+        all_recommendations.append({
+            "title": f"#{safe_kw} 관련 인기 게시물 둘러보기",
+            "url": f"https://www.instagram.com/explore/tags/{safe_kw}/",
+            "snippet": f"인스타그램에서 #{safe_kw} 태그가 포함된 최신 트렌드와 릴스를 확인해보세요.",
+            "matched_keyword": kw
+        })
                 
     return all_recommendations

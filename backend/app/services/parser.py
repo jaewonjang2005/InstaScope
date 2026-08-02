@@ -27,7 +27,7 @@ class InstaParser:
         try:
             with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
                 data = json.load(f)
-                return decode_obj(data)
+                return data
         except Exception as e:
             print(f"Error reading {relative_path}: {e}")
             return None
@@ -47,26 +47,26 @@ class InstaParser:
 
             label_values = item.get('label_values', [])
             for lv in label_values:
-                lbl = lv.get('label', '')
-                val = lv.get('value', '')
-                title = lv.get('title', '')
+                lbl = decode_insta_text(lv.get('label', ''))
+                val = decode_insta_text(lv.get('value', ''))
+                title = decode_insta_text(lv.get('title', ''))
                 
                 if lbl == 'URL':
-                    url = val or lv.get('href', '')
+                    url = val or decode_insta_text(lv.get('href', ''))
                 elif lbl == '캡션':
                     caption = val
                 elif title == '해시태그':
                     for d1 in lv.get('dict', []):
                         for d2 in d1.get('dict', []):
-                            if d2.get('label') == '이름':
-                                hashtags.add(d2.get('value', '').strip('#'))
+                            if decode_insta_text(d2.get('label', '')) == '이름':
+                                hashtags.add(decode_insta_text(d2.get('value', '')).strip('#'))
                 
                 # Check for owner in either title or label
                 if '이름' in lbl or '소유자' in lbl or '작성자' in lbl or '소유자' in title or '작성자' in title:
                     for d1 in lv.get('dict', []):
                         for d2 in d1.get('dict', []):
-                            if d2.get('label') == '이름' or d2.get('label') == '사용자 이름':
-                                owner = d2.get('value', '')
+                            if decode_insta_text(d2.get('label', '')) in ('이름', '사용자 이름'):
+                                owner = decode_insta_text(d2.get('value', ''))
 
             if caption:
                 found_tags = re.findall(r'#(\w+)', caption)
@@ -107,8 +107,8 @@ class InstaParser:
             # Extract name
             label_values = col.get('label_values', [])
             for lv in label_values:
-                if lv.get('label') == '이름':
-                    name = lv.get('value', '')
+                if decode_insta_text(lv.get('label', '')) == '이름':
+                    name = decode_insta_text(lv.get('value', ''))
                     break
             
             # Extract media items inside this collection
@@ -125,7 +125,7 @@ class InstaParser:
             hashtags = []
             for item in media_list:
                 # search for hashtags in the item
-                item_str = json.dumps(item, ensure_ascii=False)
+                item_str = decode_insta_text(json.dumps(item, ensure_ascii=False))
                 tags = re.findall(r'#(\w+)', item_str)
                 hashtags.extend(tags)
                 
