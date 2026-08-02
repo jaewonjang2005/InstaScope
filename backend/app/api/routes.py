@@ -2,14 +2,12 @@ import os
 import shutil
 import tempfile
 import zipfile
+import json
 from typing import Dict, Any
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from app.services.parser import InstaParser, InstaMemoryParser
-from app.services.taste_dna import analyze_taste_dna
-from app.services.secret_collection import analyze_secret_collection
-from app.services.ideal_type import analyze_ideal_type
-from app.services.algorithm_expose import analyze_algorithm_expose
+from app.services.one_pick import analyze_one_pick
 from app.services.db_service import save_analysis_result, fetch_analysis_result
 from app.utils.cleanup import create_job, cleanup_expired_jobs
 
@@ -21,24 +19,40 @@ CHUNK_STORAGE: Dict[str, Dict[str, Any]] = {}
 class JsonPayload(BaseModel):
     files: dict
 
-def run_analysis(extract_dir: str) -> dict:
-    subdirs = [os.path.join(extract_dir, d) for d in os.listdir(extract_dir) if os.path.isdir(os.path.join(extract_dir, d))]
-    target_dir = extract_dir
-    if len(subdirs) == 1 and ('ads_information' in os.listdir(subdirs[0]) or 'connections' in os.listdir(subdirs[0]) or 'your_instagram_activity' in os.listdir(subdirs[0])):
-        target_dir = subdirs[0]
-
-    parser = InstaParser(target_dir)
-    taste_dna = analyze_taste_dna(parser)
-    secret_collection = analyze_secret_collection(parser)
-    ideal_type = analyze_ideal_type(parser)
-    algorithm_expose = analyze_algorithm_expose(parser)
-
-    return {
-        "taste_dna": taste_dna,
-        "secret_collection": secret_collection,
-        "ideal_type": ideal_type,
-        "algorithm_expose": algorithm_expose
-    }
+def extract_and_parse_zip(zip_path: str) -> dict:
+    """
+    Extracts only the required JSON files from the ZIP archive into memory,
+    bypassing the need to extract everything to disk (fixes Vercel 500MB tmp limit).
+    """
+    required_files = [
+        'your_instagram_activity/likes/liked_posts.json',
+        'your_instagram_activity/saved/saved_posts.json',
+        'your_instagram_activity/story_interactions/stories_viewed.json',
+        'your_instagram_activity/story_interactions/story_likes.json'
+    ]
+    
+    extracted_data = {}
+    
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            # Find the actual path prefixes in the zip (sometimes it's nested)
+            file_names = zip_ref.namelist()
+            
+            for req_file in required_files:
+                # Find matching file in zip (case-insensitive, ignoring root folder name)
+                matching_files = [f for f in file_names if f.lower().endswith(req_file.lower())]
+                if matching_files:
+                    with zip_ref.open(matching_files[0]) as f:
+                        try:
+                            # Read and decode
+                            content = f.read().decode('utf-8', errors='ignore')
+                            extracted_data[req_file] = json.loads(content)
+                        except Exception as e:
+                            print(f"Error reading {req_file} from zip: {e}")
+    except Exception as e:
+        raise Exception(f"Failed to process zip file: {e}")
+        
+    return extracted_data
 
 @router.post("/upload-chunk")
 async def upload_chunk(
@@ -48,11 +62,6 @@ async def upload_chunk(
     total_chunks: int = Form(...),
     file: UploadFile = File(...)
 ):
-    """
-    HTTP Chunked Upload Endpoint:
-    Receives 2MB binary chunks, saves them sequentially, and reassembles the full ZIP when the last chunk arrives.
-    Bypasses Vercel 4.5MB payload limit 100% reliably while preserving 100% of full dataset context without hallucination!
-    """
     if upload_id not in CHUNK_STORAGE:
         CHUNK_STORAGE[upload_id] = {
             "temp_dir": tempfile.mkdtemp(prefix=f"chunk_{upload_id}_"),
@@ -69,12 +78,12 @@ async def upload_chunk(
 
         chunk_info["received_chunks"].add(chunk_index)
 
-        # If all binary chunks have been received
+        # If all chunks are received
         if len(chunk_info["received_chunks"]) == total_chunks:
             temp_dir = chunk_info["temp_dir"]
             merged_zip_path = os.path.join(temp_dir, "merged_upload.zip")
 
-            # Reassemble binary chunks in sequential order
+            # Reassemble binary chunks
             with open(merged_zip_path, "wb") as merged_file:
                 for i in range(total_chunks):
                     part_path = os.path.join(temp_dir, f"chunk_{i}")
@@ -83,21 +92,18 @@ async def upload_chunk(
                             shutil.copyfileobj(part_file, merged_file)
                         os.remove(part_path)
 
-            # Unzip merged full archive
-            extract_dir = os.path.join(temp_dir, "extracted")
-            os.makedirs(extract_dir, exist_ok=True)
-
-            with zipfile.ZipFile(merged_zip_path, 'r') as zip_ref:
-                zip_ref.extractall(extract_dir)
-
+            # Stream required JSONs directly from ZIP
+            extracted_data = extract_and_parse_zip(merged_zip_path)
             os.remove(merged_zip_path)
 
-            # Execute 100% full dataset analysis (No missing keys / No hallucination)
+            # Parse and analyze
+            parser = InstaMemoryParser(extracted_data)
+            analysis_result = analyze_one_pick(parser)
+
             job_id = create_job()
-            analysis_result = run_analysis(extract_dir)
             save_analysis_result(job_id, analysis_result)
 
-            # Cleanup temporary chunk directory
+            # Cleanup
             del CHUNK_STORAGE[upload_id]
             shutil.rmtree(temp_dir)
 
@@ -110,7 +116,7 @@ async def upload_chunk(
             del CHUNK_STORAGE[upload_id]
         if os.path.exists(chunk_info["temp_dir"]):
             shutil.rmtree(chunk_info["temp_dir"])
-        raise HTTPException(status_code=500, detail=f"청크 데이터 병합 및 파싱 분석 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"데이터 병합 및 파싱 중 오류 발생: {str(e)}")
 
     return {"status": "chunk_received", "chunk_index": chunk_index, "completed": False}
 
@@ -118,17 +124,7 @@ async def upload_chunk(
 async def upload_payload(payload: JsonPayload, background_tasks: BackgroundTasks):
     try:
         parser = InstaMemoryParser(payload.files)
-        taste_dna = analyze_taste_dna(parser)
-        secret_collection = analyze_secret_collection(parser)
-        ideal_type = analyze_ideal_type(parser)
-        algorithm_expose = analyze_algorithm_expose(parser)
-
-        analysis_result = {
-            "taste_dna": taste_dna,
-            "secret_collection": secret_collection,
-            "ideal_type": ideal_type,
-            "algorithm_expose": algorithm_expose
-        }
+        analysis_result = analyze_one_pick(parser)
 
         job_id = create_job()
         save_analysis_result(job_id, analysis_result)
@@ -136,7 +132,7 @@ async def upload_payload(payload: JsonPayload, background_tasks: BackgroundTasks
 
         return {"status": "success", "job_id": job_id}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"브라우저 파싱 데이터 분석 중 오류 발생: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"분석 중 오류 발생: {str(e)}")
 
 @router.post("/upload")
 async def upload_zip(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
@@ -150,13 +146,14 @@ async def upload_zip(background_tasks: BackgroundTasks, file: UploadFile = File(
         with open(zip_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(temp_dir)
-
+        extracted_data = extract_and_parse_zip(zip_path)
         os.remove(zip_path)
+        shutil.rmtree(temp_dir)
+
+        parser = InstaMemoryParser(extracted_data)
+        analysis_result = analyze_one_pick(parser)
 
         job_id = create_job()
-        analysis_result = run_analysis(temp_dir)
         save_analysis_result(job_id, analysis_result)
         background_tasks.add_task(cleanup_expired_jobs)
 

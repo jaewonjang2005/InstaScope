@@ -27,26 +27,19 @@ def save_analysis_result(job_id: str, result_data: Dict[str, Any]) -> str:
     """
     Saves analysis result to Supabase if configured, otherwise falls back to local memory store.
     """
-    taste_dna = result_data.get("taste_dna", {})
-    secret_collection = result_data.get("secret_collection", {})
-    ideal_type = result_data.get("ideal_type", {})
-    algorithm_expose = result_data.get("algorithm_expose", {})
-
     if supabase_client:
         try:
+            # Save the new 1-pick result structure
             record = {
                 "id": job_id,
-                "taste_dna": taste_dna,
-                "secret_collection": secret_collection,
-                "ideal_type": ideal_type,
-                "algorithm_expose": algorithm_expose
+                "one_pick_result": result_data # Storing the entire result as JSON
             }
             supabase_client.table("analysis_jobs").insert(record).execute()
             print(f"Saved job {job_id} to Supabase DB.")
         except Exception as e:
             print(f"Failed to insert into Supabase DB, using memory fallback: {e}")
 
-    # Memory fallback
+    # Memory fallback (still useful for immediate polling before Supabase syncs, or if Supabase fails)
     JOBS_STORE[job_id] = {
         "timestamp": time.time(),
         "result": result_data
@@ -62,12 +55,9 @@ def fetch_analysis_result(job_id: str) -> Optional[Dict[str, Any]]:
             response = supabase_client.table("analysis_jobs").select("*").eq("id", job_id).execute()
             if response.data and len(response.data) > 0:
                 data = response.data[0]
-                return {
-                    "taste_dna": data.get("taste_dna"),
-                    "secret_collection": data.get("secret_collection"),
-                    "ideal_type": data.get("ideal_type"),
-                    "algorithm_expose": data.get("algorithm_expose")
-                }
+                # Try to get the new one_pick_result column first
+                if "one_pick_result" in data and data["one_pick_result"]:
+                    return data["one_pick_result"]
         except Exception as e:
             print(f"Supabase fetch warning: {e}")
 

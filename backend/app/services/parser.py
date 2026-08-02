@@ -6,7 +6,7 @@ from typing import Dict, List, Any
 from app.utils.encoding import decode_insta_text, decode_obj
 
 class InstaParser:
-    """Parser focused strictly on your_instagram_activity directory."""
+    """Parser focused strictly on extracting data for 1-Pick analysis."""
     def __init__(self, root_dir: str):
         self.root_dir = root_dir
 
@@ -49,19 +49,23 @@ class InstaParser:
             for lv in label_values:
                 lbl = lv.get('label', '')
                 val = lv.get('value', '')
+                title = lv.get('title', '')
+                
                 if lbl == 'URL':
                     url = val or lv.get('href', '')
                 elif lbl == '캡션':
                     caption = val
-                elif lbl == '해시태그':
+                elif title == '해시태그':
                     for d1 in lv.get('dict', []):
                         for d2 in d1.get('dict', []):
                             if d2.get('label') == '이름':
                                 hashtags.add(d2.get('value', '').strip('#'))
-                elif '이름' in lbl or '소유자' in lbl or '작성자' in lbl:
+                
+                # Check for owner in either title or label
+                if '이름' in lbl or '소유자' in lbl or '작성자' in lbl or '소유자' in title or '작성자' in title:
                     for d1 in lv.get('dict', []):
                         for d2 in d1.get('dict', []):
-                            if d2.get('label') == '이름':
+                            if d2.get('label') == '이름' or d2.get('label') == '사용자 이름':
                                 owner = d2.get('value', '')
 
             if caption:
@@ -90,118 +94,11 @@ class InstaParser:
     def parse_saved_posts(self) -> List[Dict[str, Any]]:
         return self._extract_posts_list(os.path.join('your_instagram_activity', 'saved', 'saved_posts.json'))
 
-    def parse_saved_collections(self) -> List[Dict[str, Any]]:
-        data = self._read_json(os.path.join('your_instagram_activity', 'saved', 'saved_collections.json'))
-        collections = []
-        if not isinstance(data, list):
-            return collections
-
-        for item in data:
-            name = ""
-            c_type = ""
-            privacy = ""
-            updated_ts = 0
-            posts = []
-
-            for lv in item.get('label_values', []):
-                lbl = lv.get('label', '')
-                val = lv.get('value', '')
-                if lbl == '이름':
-                    name = val
-                elif lbl == '유형':
-                    c_type = val
-                elif lbl == '공개 범위':
-                    privacy = val
-                elif lbl == '업데이트 시간':
-                    updated_ts = lv.get('timestamp_value', 0)
-                elif 'dict' in lv:
-                    for post_d in lv.get('dict', []):
-                        p_url = ""
-                        p_cap = ""
-                        p_owner = ""
-                        p_tags = set()
-                        for sub_d in post_d.get('dict', []):
-                            s_lbl = sub_d.get('label', '')
-                            s_val = sub_d.get('value', '')
-                            if s_lbl == 'URL':
-                                p_url = s_val
-                            elif s_lbl == '캡션':
-                                p_cap = s_val
-                            elif s_lbl == '소유자':
-                                for d1 in sub_d.get('dict', []):
-                                    for d2 in d1.get('dict', []):
-                                        if '이름' in d2.get('label', ''):
-                                            p_owner = d2.get('value', '')
-                        if p_cap:
-                            for tag in re.findall(r'#(\w+)', p_cap):
-                                p_tags.add(tag)
-                        posts.append({
-                            'url': p_url,
-                            'caption': p_cap,
-                            'owner': p_owner,
-                            'hashtags': list(p_tags)
-                        })
-
-            collections.append({
-                'name': name or "기본 저장",
-                'type': c_type,
-                'privacy': privacy,
-                'updated_timestamp': updated_ts,
-                'posts_count': len(posts),
-                'posts': posts
-            })
-        return collections
-
     def parse_stories_viewed(self) -> List[Dict[str, Any]]:
         return self._extract_posts_list(os.path.join('your_instagram_activity', 'story_interactions', 'stories_viewed.json'))
 
     def parse_story_likes(self) -> List[Dict[str, Any]]:
         return self._extract_posts_list(os.path.join('your_instagram_activity', 'story_interactions', 'story_likes.json'))
-
-    def parse_liked_comments(self) -> List[Dict[str, Any]]:
-        data = self._read_json(os.path.join('your_instagram_activity', 'likes', 'liked_comments.json'))
-        comments = []
-        if isinstance(data, list):
-            for item in data:
-                ts = item.get('timestamp', 0)
-                for lv in item.get('label_values', []):
-                    comments.append({'timestamp': ts, 'value': lv.get('value', '')})
-        return comments
-
-    # Deprecated/Unused Connection & Ad fallbacks for ver1 compatibility
-    def parse_followers(self) -> List[Dict[str, Any]]:
-        return []
-
-    def parse_following(self) -> List[Dict[str, Any]]:
-        return []
-
-    def parse_recently_unfollowed(self) -> List[Dict[str, Any]]:
-        return []
-
-    def parse_close_friends(self) -> List[str]:
-        return []
-
-    def parse_favorited_profiles(self) -> List[str]:
-        return []
-
-    def parse_videos_watched(self) -> List[Dict[str, Any]]:
-        return []
-
-    def parse_posts_viewed(self) -> List[Dict[str, Any]]:
-        return []
-
-    def parse_ad_categories(self) -> List[str]:
-        return []
-
-    def parse_advertisers(self) -> List[str]:
-        return []
-
-    def parse_locations(self) -> List[str]:
-        return []
-
-    def parse_login_activity(self) -> List[Dict[str, Any]]:
-        return []
-
 
 class InstaMemoryParser(InstaParser):
     """Memory parser that reads strictly your_instagram_activity JSONs."""
