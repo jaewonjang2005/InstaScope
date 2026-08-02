@@ -1,4 +1,3 @@
-from ddgs import DDGS
 import time
 import requests
 
