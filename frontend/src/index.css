@@ -14,6 +14,9 @@
   --insta-orange: #fcb045;
   --insta-gradient: linear-gradient(135deg, #833ab4 0%, #fd1d1d 50%, #fcb045 100%);
   --insta-glow: 0 0 25px rgba(253, 29, 29, 0.35);
+  
+  --primary-color: #ff6b81;
+  --gradient-primary: var(--insta-gradient);
 
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
