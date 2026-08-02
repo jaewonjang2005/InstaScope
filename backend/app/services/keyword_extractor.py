@@ -119,12 +119,40 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
 
     def classify_tag_type(tag: str) -> str:
         t = tag.lower()
-        if any(bad in t for bad in EXPLICIT_HIDDEN_KEYWORDS):
-            return "EXPLICIT_HIDDEN"
-        elif any(imp in t for imp in IMPLICIT_HIDDEN_KEYWORDS):
-            return "IMPLICIT_HIDDEN"
-        else:
-            return "SFW"
+        
+        for bad in EXPLICIT_HIDDEN_KEYWORDS:
+            # False positive 방지 규칙
+            if bad == 'av' and t != 'av':
+                continue
+            if bad == 'porn' and t.endswith('porn') and t not in ('porn', 'pornhub'):
+                continue
+            if bad == 'sex' and t != 'sex':
+                continue
+            if bad == '가슴' and any(x in t for x in ['닭가슴살', '가슴뛰는', '가슴아픈', '가슴속', '가슴뭉클']):
+                continue
+            if bad == '야한' and any(x in t for x in ['해야한', '다양한', '유리한', '불리한', '피곤한', '미안한', '치열한', '야한다', '야한데', '야한지']):
+                continue
+            if bad == '은꼴' and '닮은꼴' in t:
+                continue
+            if bad == '섹시' and '섹시야마' in t:
+                continue
+            
+            if bad in t:
+                return "EXPLICIT_HIDDEN"
+                
+        for imp in IMPLICIT_HIDDEN_KEYWORDS:
+            # False positive 방지 규칙
+            if imp == '비키니' and '비키니시티' in t:
+                continue
+            if imp == '섹시' and '섹시야마' in t:
+                continue
+            if imp == '화보' and '패션화보' in t:
+                continue
+                
+            if imp in t:
+                return "IMPLICIT_HIDDEN"
+                
+        return "SFW"
 
     def preprocess_and_classify_tags(tag_scores: Dict[str, int]) -> Tuple[Dict[str, int], Dict[str, int], Dict[str, int]]:
         """
