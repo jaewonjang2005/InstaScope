@@ -4,6 +4,7 @@ import Header from './components/Header';
 import UploadPage from './pages/UploadPage';
 import LoadingPage from './pages/LoadingPage';
 import ResultPage from './pages/ResultPage';
+import SecretPickPage from './pages/SecretPickPage';
 import './App.css';
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
             <Route path="/" element={<UploadPage />} />
             <Route path="/loading" element={<LoadingPage />} />
             <Route path="/result" element={<ResultPage />} />
+            <Route path="/secret" element={<SecretPickPage />} />
           </Routes>
         </main>
 

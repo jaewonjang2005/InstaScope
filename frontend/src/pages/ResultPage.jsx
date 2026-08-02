@@ -54,9 +54,6 @@ export default function ResultPage() {
           {keywords?.search_sfw_queries?.map((kw, i) => (
              <span key={`sfw-${i}`} className="badge" style={{ padding: '0.4rem 0.8rem', background: 'rgba(255,255,255,0.1)', borderRadius: '20px' }}>#{kw}</span>
           ))}
-          {keywords?.search_hidden_queries?.map((kw, i) => (
-             <span key={`hidden-${i}`} className="badge" style={{ padding: '0.4rem 0.8rem', background: 'rgba(255,100,100,0.1)', color: '#ff8e53', borderRadius: '20px' }}>#{kw}</span>
-          ))}
         </div>
       </div>
 
@@ -68,13 +65,33 @@ export default function ResultPage() {
         emptyMessage="일반 취향 키워드를 충분히 찾지 못했습니다. 더 많은 인스타 활동이 필요해요!"
       />
 
-      <Recommendations 
-        title="당신의 숨겨진 취향 추천 (Secret Pick)" 
-        items={hidden_recommendations} 
-        icon={<Flame size={24} color="#ff6b6b" />} 
-        colorClass="hidden-glow"
-        emptyMessage="숨겨진 특별한 취향이 발견되지 않았습니다. 평범하고 건전한 라이프를 즐기고 계시네요! 😇"
-      />
+      <div style={{ display: 'flex', justifyContent: 'center', marginTop: '2rem' }}>
+        <button 
+          onClick={() => navigate('/secret', { 
+            state: { 
+              hidden_recommendations: hidden_recommendations,
+              hidden_keywords: keywords?.search_hidden_queries
+            } 
+          })}
+          className="glass-card"
+          style={{ 
+            padding: '1.2rem 2.5rem', 
+            fontSize: '1.2rem', 
+            fontWeight: 'bold',
+            display: 'inline-flex', 
+            alignItems: 'center', 
+            gap: '0.8rem', 
+            cursor: 'pointer', 
+            border: '1px solid rgba(255,107,107,0.4)', 
+            background: 'linear-gradient(45deg, rgba(255,107,107,0.1), rgba(255,142,83,0.1))',
+            color: '#ff8e53',
+            borderRadius: '50px',
+            boxShadow: '0 4px 15px rgba(255, 107, 107, 0.2)'
+          }}
+        >
+          <Flame size={24} color="#ff6b6b" /> 당신의 진짜 숨겨진 취향 확인하기 🔒
+        </button>
+      </div>
 
       <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '3.5rem' }}>
         <button 
