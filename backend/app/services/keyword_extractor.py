@@ -307,45 +307,42 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         implicit_hidden_tags: Dict[str, float],
         sfw_tags: Dict[str, float],
         secret_picks: List[str] = [],
-        num_queries: int = 5
+        num_queries: int = 10
     ) -> Tuple[List[str], List[str]]:
         """
-        분류된 태그들을 바탕으로 SFW 및 HIDDEN 검색어 리스트를 각각 생성합니다.
+        분류된 태그들을 바탕으로 SFW 및 HIDDEN 검색어 리스트를 각각 10개까지 생성합니다.
         """
-        # --- HIDDEN 쿼리 생성 (서브 취향 및 재조명) ---
+        # --- HIDDEN 쿼리 생성 (19금 포함, 5~10개) ---
         search_hidden_queries = []
-        combined_hidden = []
+        combined_hidden = list(secret_picks)
         
-        # 1. Secret Picks (사용자 정의 컬렉션에서 밀도로 추출된 핵심 은밀 취향) 최우선 추가
-        for pick in secret_picks:
-            combined_hidden.append(pick)
-            combined_hidden.append(f"{pick} 추천")
-
-        # 2. 19금/민감한 키워드가 있다면 해당 키워드 자체를 활용하여 맥락에 맞게 검색어 조합
+        # 1. 19금/민감한 키워드(explicit) 및 잠재적(implicit) 키워드를 모두 활용
         all_hidden_tags = list(implicit_hidden_tags.items()) + list(explicit_hidden_tags.items())
         if all_hidden_tags:
             sorted_hidden = sorted(all_hidden_tags, key=lambda x: x[1], reverse=True)
             for tag, score in sorted_hidden:
-                combined_hidden.append(tag)
+                if tag not in combined_hidden:
+                    combined_hidden.append(tag)
         
-        # 2. 일반 태그 중에서 주된 취향(Top 3)에는 못 들었지만 서브로 자주 등장하는 취향 추가
+        # 2. 숨겨진 태그가 부족할 경우, 일반 태그(SFW) 중에서 차출
         sorted_general = sorted(sfw_tags.items(), key=lambda x: x[1], reverse=True)
-        sub_tastes = [tag for tag, score in sorted_general[3:8]]
-        combined_hidden.extend(sub_tastes)
+        for tag, score in sorted_general:
+            if tag not in combined_hidden and len(combined_hidden) < num_queries:
+                combined_hidden.append(tag)
         
         search_hidden_queries = list(dict.fromkeys(combined_hidden))[:num_queries]
 
-        # --- SFW 쿼리 생성 ---
+        # --- SFW 쿼리 생성 (5~10개) ---
         search_sfw_queries = []
-        if sorted_general:
-            top_keyword = sorted_general[0][0] # 제1의 취향
-            # 제1의 취향에만 100% 집중하도록 쿼리 생성
-            sfw_list = [top_keyword, f"인스타 {top_keyword}"] 
-            search_sfw_queries = list(dict.fromkeys(sfw_list))[:num_queries]
+        for tag, score in sorted_general:
+            if tag not in search_sfw_queries:
+                search_sfw_queries.append(tag)
+                
+        search_sfw_queries = search_sfw_queries[:num_queries]
 
         # --- 폴백 안전장치 ---
         if not search_sfw_queries and not search_hidden_queries:
-            search_sfw_queries = ["인기 있는 이미지", "추천 콘텐츠"]
+            search_sfw_queries = ["일상", "소통", "데일리"]
 
         return search_sfw_queries, search_hidden_queries
 
