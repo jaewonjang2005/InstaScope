@@ -70,7 +70,9 @@ export default function ResultPage() {
           onClick={() => navigate('/secret', { 
             state: { 
               hidden_recommendations: hidden_recommendations,
-              hidden_keywords: keywords?.search_hidden_queries
+              hidden_keywords: keywords?.search_hidden_queries,
+              spicy_recommendations: data.spicy_recommendations,
+              raw_hidden_tags: keywords?.raw_hidden_tags
             } 
           })}
           className="glass-card"
