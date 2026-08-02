@@ -97,9 +97,11 @@ async def upload_chunk(
             
             job_id = create_job()
             
+            tag_to_urls = keywords_result.get("tag_to_urls", {})
+            
             # Search top 5 keywords for SFW and Hidden to fit within Vercel 10s limit
-            sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:5])
-            hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:5])
+            sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:5], tag_to_urls)
+            hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:5], tag_to_urls)
             
             analysis_result = {
                 "keywords": keywords_result,
@@ -132,9 +134,11 @@ async def upload_payload(payload: JsonPayload, background_tasks: BackgroundTasks
         keywords_result = extract_taste_keywords(parser)
         job_id = create_job()
         
+        tag_to_urls = keywords_result.get("tag_to_urls", {})
+        
         # Search top 5 keywords for SFW and Hidden to fit within Vercel 10s limit
-        sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:5])
-        hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:5])
+        sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:5], tag_to_urls)
+        hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:5], tag_to_urls)
         
         analysis_result = {
             "keywords": keywords_result,

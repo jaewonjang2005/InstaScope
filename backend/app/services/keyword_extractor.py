@@ -19,7 +19,15 @@ HIDDEN_MAPPING = {
     "porn": "lookbook",
     "sex": "romance",
     "nsfw": "model",
-    "nude": "bikini"
+    "nude": "bikini",
+    "그라비아": "화보",
+    "gravure": "model",
+    "코스프레": "패션",
+    "cosplay": "fashion",
+    "수영복": "여름",
+    "맥심": "잡지",
+    "란제리": "패션",
+    "속옷": "패션"
 }
 
 def is_hidden(tag: str) -> bool:
@@ -47,11 +55,13 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     current_time = time.time()
     
     tag_scores = {}
+    tag_to_urls = {}
     
     def add_tags(posts: List[Dict[str, Any]], base_weight: float):
         for p in posts:
             ts = p.get('timestamp', 0)
             tags = p.get('hashtags', [])
+            url = p.get('url', '')
             
             # Time Decay Weighting
             time_weight = 1.0
@@ -69,6 +79,13 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
                     continue
                 tag_clean = t.lower()
                 tag_scores[tag_clean] = tag_scores.get(tag_clean, 0.0) + final_weight
+                
+                # URL 저장 로직 추가 (추천 콘텐츠용)
+                if url:
+                    if tag_clean not in tag_to_urls:
+                        tag_to_urls[tag_clean] = set()
+                    if len(tag_to_urls[tag_clean]) < 10:  # 메모리 방지를 위해 태그당 최대 10개만 저장
+                        tag_to_urls[tag_clean].add(url)
 
     # 가중치 (1-Pick과 동일하게 적용)
     add_tags(stories_viewed, 1.0)
@@ -115,7 +132,12 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     # 기존 파일 최상단에 있는 HIDDEN_MAPPING 키워드들을 명시적 숨겨진(Hidden) 키워드로 활용합니다.
 
     EXPLICIT_HIDDEN_KEYWORDS = set(HIDDEN_MAPPING.keys())
-    IMPLICIT_HIDDEN_KEYWORDS = {"반캠", "직캠", "섹시", "요가", "비키니", "룩북", "화보", "바디프로필"}
+    IMPLICIT_HIDDEN_KEYWORDS = {
+        "반캠", "직캠", "섹시", "요가", "비키니", "룩북", "화보", "바디프로필",
+        "애니", "anime", "버튜버", "vtuber", "홀로라이브", "hololive", 
+        "미소녀", "otaku", "오타쿠", "만화", "manga", "원신", "블루아카이브", "니케",
+        "코믹월드", "일러스트", "레이싱모델", "피팅모델", "풀빌라", "씹덕", "2d"
+    }
 
     def classify_tag_type(tag: str) -> str:
         t = tag.lower()
@@ -430,5 +452,6 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         "raw_hidden_tags": [t[0] for t in sorted_hidden[:10]],
         "search_sfw_queries": search_sfw_queries,
         "search_hidden_queries": search_hidden_queries,
+        "tag_to_urls": tag_to_urls,
         "total_tags_found": len(tag_scores)
     }
