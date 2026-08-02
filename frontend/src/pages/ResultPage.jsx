@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Recommendations from '../components/Recommendations';
 import confetti from 'canvas-confetti';
-import { RefreshCw, Hash, Flame } from 'lucide-react';
+import { RefreshCw, Hash, Flame, Sparkles } from 'lucide-react';
 
 export default function ResultPage() {
   const location = useLocation();
@@ -61,9 +61,9 @@ export default function ResultPage() {
       </div>
 
       <Recommendations 
-        title="일반 맞춤 추천 (SFW)" 
+        title="맞춤 추천" 
         items={sfw_recommendations} 
-        icon={<Hash size={24} />} 
+        icon={<Sparkles size={24} color="#fcb045" />} 
         colorClass="sfw-glow"
         emptyMessage="일반 취향 키워드를 충분히 찾지 못했습니다. 더 많은 인스타 활동이 필요해요!"
       />
@@ -79,7 +79,7 @@ export default function ResultPage() {
       <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '3.5rem' }}>
         <button 
           className="glass-card"
-          style={{ padding: '1rem 2rem', fontSize: '1.1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.2)' }}
+          style={{ padding: '1rem 2rem', fontSize: '1.1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.2)', color: '#fff' }}
           onClick={() => {
             navigator.clipboard.writeText(window.location.href);
             alert('결과 페이지 링크가 복사되었습니다!');

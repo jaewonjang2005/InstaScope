@@ -105,7 +105,7 @@ export default function UploadPage() {
 
       <button 
         className="gradient-btn" 
-        style={{ width: '100%', padding: '1rem', fontSize: '1.1rem' }}
+        style={{ width: '100%', padding: '1rem', fontSize: '1.1rem', justifyContent: 'center' }}
         onClick={handleUpload}
         disabled={!file || isUploading}
       >
