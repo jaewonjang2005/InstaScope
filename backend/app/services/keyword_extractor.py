@@ -54,10 +54,23 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     tag_stats = {}
     tag_to_urls = {}
     
+    import time
+    current_time = time.time()
+    
     def process_posts(posts: List[Dict[str, Any]], action_type: str):
         for p in posts:
+            ts = p.get('timestamp', 0)
             tags = p.get('hashtags', [])
             url = p.get('url', '')
+            
+            # Time Decay Weighting 복원
+            time_weight = 1.0
+            if ts > 0:
+                days_ago = (current_time - ts) / (60 * 60 * 24)
+                if days_ago <= 30:
+                    time_weight = 3.0
+                elif days_ago <= 180:
+                    time_weight = 1.5
             
             for t in tags:
                 if len(t) < 2:
@@ -65,9 +78,13 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
                 tag_clean = t.lower()
                 
                 if tag_clean not in tag_stats:
-                    tag_stats[tag_clean] = {'liked': 0, 'saved': 0, 'story': 0, 'collected': 0}
+                    tag_stats[tag_clean] = {'public': 0.0, 'private': 0.0}
                 
-                tag_stats[tag_clean][action_type] += 1
+                # Public: 좋아요, 스토리 / Private: 저장, 컬렉션
+                if action_type in ['liked', 'story']:
+                    tag_stats[tag_clean]['public'] += time_weight
+                else:
+                    tag_stats[tag_clean]['private'] += (time_weight * 3.0)  # 저장(Save) 기본 가중치
                 
                 if url:
                     if tag_clean not in tag_to_urls:
@@ -89,31 +106,48 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
                     continue
                 tag_clean = t.lower()
                 if tag_clean not in tag_stats:
-                    tag_stats[tag_clean] = {'liked': 0, 'saved': 0, 'story': 0, 'collected': 0}
-                tag_stats[tag_clean]['collected'] += 1
+                    tag_stats[tag_clean] = {'public': 0.0, 'private': 0.0}
+                tag_stats[tag_clean]['private'] += 5.0  # 컬렉션은 시간 정보가 없으므로 고정 가중치 5.0
     except Exception as e:
         print(f"Collection parse error: {e}")
 
     # === [다층적 상호작용 기반 '찐 취향(True Affinity)' 산출] ===
-    tag_scores = {}
-    STOP_WORDS = {"일상", "소통", "맞팔", "선팔", "좋아요반사", "f4f", "ootd", "좋아요", "팔로우"}
+    STOP_WORDS = {"일상", "소통", "맞팔", "선팔", "좋아요반사", "f4f", "ootd", "좋아요", "팔로우", "데일리"}
+    
+    # 1. 태그별 Total Volume 계산 및 Private Score 중앙값(Median) 도출
+    private_scores = []
+    tag_scores = {}  # SFW(대중적 취향) 정렬을 위한 총 볼륨 저장용
     
     for tag, stats in tag_stats.items():
-        if tag in STOP_WORDS:
+        total = stats['public'] + stats['private']
+        tag_scores[tag] = total
+        
+        if tag not in STOP_WORDS and stats['private'] > 0:
+            private_scores.append(stats['private'])
+            
+    import statistics
+    median_private = statistics.median(private_scores) if private_scores else 0
+
+    # 2. SFW(대중적 취향) Top 10 추출
+    sorted_by_total = sorted([t for t in tag_scores.items() if t[0] not in STOP_WORDS], key=lambda x: x[1], reverse=True)
+    top_sfw = [t[0] for t in sorted_by_total[:15]]
+
+    # 3. Mathematical Hidden (수학적 은밀한 취향) 도출
+    hidden_candidates = []
+    for tag, stats in tag_stats.items():
+        # Top 5 SFW(완전 대중적인 메인 취향)이거나 불용어면 제외
+        if tag in STOP_WORDS or tag in top_sfw[:5]:
             continue
             
-        # 기본 발생량 (볼륨)
-        base_volume = stats['liked'] + stats['story'] + stats['saved'] + stats['collected']
-        
-        # 겹칠수록 폭발하는 다층적 가중치 공식 (저장, 컬렉션 등 높은 관여도에 가중치)
-        # 단순히 좋아요만 누른 경우 multiplier는 1.0
-        multiplier = (1 + stats['saved'] * 3.0) * (1 + stats['collected'] * 5.0)
-        
-        tag_scores[tag] = base_volume * multiplier
+        # 해당 사용자의 Private 중앙값 이상인 태그들만 대상 (노이즈 제거)
+        if stats['private'] >= median_private:
+            ratio = stats['private'] / (stats['public'] + 1.0)
+            hidden_candidates.append((tag, ratio))
+            
+    # Private Ratio가 높은 순서대로 정렬하여 Secret Picks 선정
+    sorted_by_ratio = sorted(hidden_candidates, key=lambda x: x[1], reverse=True)
+    secret_picks = [t[0] for t in sorted_by_ratio[:10]]
 
-    # 최상위 점수 태그들을 Secret Picks로 자동 선정
-    sorted_by_affinity = sorted(tag_scores.items(), key=lambda x: x[1], reverse=True)
-    secret_picks = [t[0] for t in sorted_by_affinity[:10]]
 
 
     # --- [데이터 전처리 및 분류 파트] ---
