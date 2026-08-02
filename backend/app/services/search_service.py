@@ -1,4 +1,4 @@
-from ddgs import DDGS
+from duckduckgo_search import DDGS
 import time
 
 def search_instagram(query: str, max_results: int = 3) -> list:
