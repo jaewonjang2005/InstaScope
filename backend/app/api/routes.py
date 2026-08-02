@@ -101,14 +101,15 @@ async def upload_chunk(
             parser = InstaMemoryParser(extracted_data)
             keywords_result = extract_taste_keywords(parser)
             
-            # Search top 2 keywords for SFW and NSFW to avoid Vercel timeout
+            # Search top 2 keywords for SFW and Hidden to avoid Vercel timeout
             sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:2], max_per_keyword=3)
-            nsfw_recs = get_recommendations_for_keywords(keywords_result["search_nsfw_queries"][:2], max_per_keyword=3)
-            
+            hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:2], max_per_keyword=3)
+
+            # Store the result
             analysis_result = {
                 "keywords": keywords_result,
                 "sfw_recommendations": sfw_recs,
-                "nsfw_recommendations": nsfw_recs
+                "hidden_recommendations": hidden_recs
             }
 
             job_id = create_job()
@@ -138,12 +139,12 @@ async def upload_payload(payload: JsonPayload, background_tasks: BackgroundTasks
         keywords_result = extract_taste_keywords(parser)
         
         sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:2], max_per_keyword=3)
-        nsfw_recs = get_recommendations_for_keywords(keywords_result["search_nsfw_queries"][:2], max_per_keyword=3)
+        hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:2], max_per_keyword=3)
         
         analysis_result = {
             "keywords": keywords_result,
             "sfw_recommendations": sfw_recs,
-            "nsfw_recommendations": nsfw_recs
+            "hidden_recommendations": hidden_recs
         }
 
         job_id = create_job()
@@ -174,12 +175,12 @@ async def upload_zip(background_tasks: BackgroundTasks, file: UploadFile = File(
         keywords_result = extract_taste_keywords(parser)
         
         sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:2], max_per_keyword=3)
-        nsfw_recs = get_recommendations_for_keywords(keywords_result["search_nsfw_queries"][:2], max_per_keyword=3)
+        hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:2], max_per_keyword=3)
         
         analysis_result = {
             "keywords": keywords_result,
             "sfw_recommendations": sfw_recs,
-            "nsfw_recommendations": nsfw_recs
+            "hidden_recommendations": hidden_recs
         }
 
         job_id = create_job()

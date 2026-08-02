@@ -1,8 +1,8 @@
 import re
 from typing import Dict, Any, List, Tuple
 
-# 19금 및 선정적 단어 필터링 및 우회 사전 (NSFW Dictionary & Safe Mapping)
-NSFW_MAPPING = {
+# 19금 및 선정적 단어 필터링 및 우회 사전 (Hidden Dictionary & Safe Mapping)
+HIDDEN_MAPPING = {
     "야동": "화보",
     "포르노": "룩북",
     "섹스": "로맨스",
@@ -22,16 +22,16 @@ NSFW_MAPPING = {
     "nude": "bikini"
 }
 
-def is_nsfw(tag: str) -> bool:
-    """단어가 NSFW 목록에 있는지 확인"""
-    for bad_word in NSFW_MAPPING.keys():
+def is_hidden(tag: str) -> bool:
+    """단어가 HIDDEN 목록에 있는지 확인"""
+    for bad_word in HIDDEN_MAPPING.keys():
         if bad_word in tag.lower():
             return True
     return False
 
 def get_safe_tag(tag: str) -> str:
-    """NSFW 단어를 SFW 대체 단어로 매핑 (검색 우회용)"""
-    for bad_word, safe_word in NSFW_MAPPING.items():
+    """HIDDEN 단어를 SFW 대체 단어로 매핑 (검색 우회용)"""
+    for bad_word, safe_word in HIDDEN_MAPPING.items():
         if bad_word in tag.lower():
             return safe_word
     return tag
@@ -62,31 +62,31 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
 
     # 분류
     sfw_tags = {}
-    nsfw_tags = {}
+    hidden_tags = {}
 
     for tag, score in tag_scores.items():
-        if is_nsfw(tag):
-            nsfw_tags[tag] = score
+        if is_hidden(tag):
+            hidden_tags[tag] = score
         else:
             sfw_tags[tag] = score
 
     # 점수순 정렬 후 상위 추출
     sorted_sfw = sorted(sfw_tags.items(), key=lambda x: x[1], reverse=True)
-    sorted_nsfw = sorted(nsfw_tags.items(), key=lambda x: x[1], reverse=True)
+    sorted_hidden = sorted(hidden_tags.items(), key=lambda x: x[1], reverse=True)
 
     top_sfw = [t[0] for t in sorted_sfw[:5]]
     
-    # NSFW의 경우 우회된 태그로 변환하여 저장
-    top_nsfw = []
-    for t, score in sorted_nsfw[:5]:
+    # Hidden의 경우 우회된 태그로 변환하여 저장
+    top_hidden = []
+    for t, score in sorted_hidden[:5]:
         safe = get_safe_tag(t)
-        if safe not in top_nsfw:
-            top_nsfw.append(safe)
+        if safe not in top_hidden:
+            top_hidden.append(safe)
 
     return {
         "raw_sfw_tags": [t[0] for t in sorted_sfw[:10]],
-        "raw_nsfw_tags": [t[0] for t in sorted_nsfw[:10]],
+        "raw_hidden_tags": [t[0] for t in sorted_hidden[:10]],
         "search_sfw_queries": top_sfw,
-        "search_nsfw_queries": top_nsfw,
+        "search_hidden_queries": top_hidden,
         "total_tags_found": len(tag_scores)
     }

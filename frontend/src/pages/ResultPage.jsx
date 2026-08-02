@@ -29,7 +29,7 @@ export default function ResultPage() {
 
   if (!data) return null;
 
-  const { keywords, sfw_recommendations, nsfw_recommendations } = data;
+  const { keywords, sfw_recommendations, hidden_recommendations } = data;
   const totalTags = keywords?.total_tags_found || 0;
 
   const topKeyword = keywords?.search_sfw_queries?.[0] || '탐험가';
@@ -54,8 +54,8 @@ export default function ResultPage() {
           {keywords?.search_sfw_queries?.map((kw, i) => (
              <span key={`sfw-${i}`} className="badge" style={{ padding: '0.4rem 0.8rem', background: 'rgba(255,255,255,0.1)', borderRadius: '20px' }}>#{kw}</span>
           ))}
-          {keywords?.search_nsfw_queries?.map((kw, i) => (
-             <span key={`nsfw-${i}`} className="badge" style={{ padding: '0.4rem 0.8rem', background: 'rgba(255,100,100,0.1)', color: '#ff8e53', borderRadius: '20px' }}>#{kw}</span>
+          {keywords?.search_hidden_queries?.map((kw, i) => (
+             <span key={`hidden-${i}`} className="badge" style={{ padding: '0.4rem 0.8rem', background: 'rgba(255,100,100,0.1)', color: '#ff8e53', borderRadius: '20px' }}>#{kw}</span>
           ))}
         </div>
       </div>
@@ -69,11 +69,11 @@ export default function ResultPage() {
       />
 
       <Recommendations 
-        title="은밀한 취향 추천 (NSFW/우회됨)" 
-        items={nsfw_recommendations} 
+        title="당신의 숨겨진 취향 추천 (Secret Pick)" 
+        items={hidden_recommendations} 
         icon={<Flame size={24} color="#ff6b6b" />} 
-        colorClass="nsfw-glow"
-        emptyMessage="19금 취향이 전혀 발견되지 않았습니다. 아주 건전한 인스타 라이프를 즐기고 계시네요! 😇"
+        colorClass="hidden-glow"
+        emptyMessage="숨겨진 특별한 취향이 발견되지 않았습니다. 평범하고 건전한 라이프를 즐기고 계시네요! 😇"
       />
 
       <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '3.5rem' }}>

@@ -23,19 +23,19 @@ def test_full_dataset():
     print("\n--- Keyword Extraction Results ---")
     print(f"Total Tags Found: {keywords_result['total_tags_found']}")
     print(f"Top SFW Search Queries: {keywords_result['search_sfw_queries']}")
-    print(f"Top NSFW Search Queries: {keywords_result['search_nsfw_queries']}")
+    print(f"Top Hidden Search Queries: {keywords_result['search_hidden_queries']}")
     
-    print("\n--- Fetching Recommendations (DuckDuckGo) ---")
+    print("\n--- Search Results ---")
     sfw_recs = get_recommendations_for_keywords(keywords_result['search_sfw_queries'][:2], max_per_keyword=2)
-    nsfw_recs = get_recommendations_for_keywords(keywords_result['search_nsfw_queries'][:2], max_per_keyword=2)
+    hidden_recs = get_recommendations_for_keywords(keywords_result['search_hidden_queries'][:2], max_per_keyword=2)
     
     print("\n[SFW Recommendations]:")
     for r in sfw_recs:
-        print(f"  - [{r['matched_keyword']}] {r['title']} ({r['url']})")
+        print(f"- [{r['matched_keyword']}] {r['title']}")
         
-    print("\n[NSFW Recommendations]:")
-    for r in nsfw_recs:
-        print(f"  - [{r['matched_keyword']}] {r['title']} ({r['url']})")
+    print("\n[Hidden Recommendations]:")
+    for r in hidden_recs:
+        print(f"- [{r['matched_keyword']}] {r['title']}")
 
     elapsed_time = time.time() - start_time
     print(f"\nExecution Time: {elapsed_time:.2f} seconds")
