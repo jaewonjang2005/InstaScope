@@ -36,7 +36,8 @@ export default function LoadingPage() {
 
           setStatusText(`데이터 전송 중... (${i + 1}/${totalChunks})`);
           
-          const response = await axios.post('http://localhost:8000/api/upload-chunk', formData, {
+          const apiUrl = import.meta.env.DEV ? 'http://localhost:8000/api' : '/api';
+          const response = await axios.post(`${apiUrl}/upload-chunk`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' }
           });
 
@@ -67,7 +68,8 @@ export default function LoadingPage() {
       // Allow the backend a moment to process the in-memory extraction
       setTimeout(async () => {
         try {
-          const res = await axios.get(`http://localhost:8000/api/results/${jobId}`);
+          const apiUrl = import.meta.env.DEV ? 'http://localhost:8000/api' : '/api';
+          const res = await axios.get(`${apiUrl}/results/${jobId}`);
           if (res.data.status === 'success') {
             navigate('/result', { state: { data: res.data.data } });
           }
