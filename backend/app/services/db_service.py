@@ -29,12 +29,12 @@ def save_analysis_result(job_id: str, result_data: Dict[str, Any]) -> str:
     """
     if supabase_client:
         try:
-            # Save the new 1-pick result structure
+            # Save the new result structure to a fresh table
             record = {
                 "id": job_id,
-                "one_pick_result": result_data # Storing the entire result as JSON
+                "result_data": result_data # Storing the entire result as JSON
             }
-            supabase_client.table("analysis_jobs").insert(record).execute()
+            supabase_client.table("insta_analysis_results").insert(record).execute()
             print(f"Saved job {job_id} to Supabase DB.")
         except Exception as e:
             print(f"Failed to insert into Supabase DB, using memory fallback: {e}")
@@ -52,12 +52,12 @@ def fetch_analysis_result(job_id: str) -> Optional[Dict[str, Any]]:
     """
     if supabase_client:
         try:
-            response = supabase_client.table("analysis_jobs").select("*").eq("id", job_id).execute()
+            response = supabase_client.table("insta_analysis_results").select("*").eq("id", job_id).execute()
             if response.data and len(response.data) > 0:
                 data = response.data[0]
-                # Try to get the new one_pick_result column first
-                if "one_pick_result" in data and data["one_pick_result"]:
-                    return data["one_pick_result"]
+                # Try to get the new result_data column first
+                if "result_data" in data and data["result_data"]:
+                    return data["result_data"]
         except Exception as e:
             print(f"Supabase fetch warning: {e}")
 
