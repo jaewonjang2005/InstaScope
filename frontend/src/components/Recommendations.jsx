@@ -1,8 +1,18 @@
 import React from 'react';
 import { ExternalLink, Hash, Flame } from 'lucide-react';
 
-export default function Recommendations({ title, items, icon, colorClass }) {
-  if (!items || items.length === 0) return null;
+export default function Recommendations({ title, items, icon, colorClass, emptyMessage }) {
+  if (!items || items.length === 0) {
+    if (!emptyMessage) return null;
+    return (
+      <div className={`glass-card recommendation-section ${colorClass}`} style={{ marginBottom: '2rem', padding: '2rem', textAlign: 'center' }}>
+        <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '1rem', fontSize: '1.5rem', opacity: 0.8 }}>
+          {icon} {title}
+        </h3>
+        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{emptyMessage}</p>
+      </div>
+    );
+  }
 
   return (
     <div className={`glass-card recommendation-section ${colorClass}`} style={{ marginBottom: '2rem', padding: '2rem' }}>

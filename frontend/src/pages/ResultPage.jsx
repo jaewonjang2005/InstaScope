@@ -32,14 +32,19 @@ export default function ResultPage() {
   const { keywords, sfw_recommendations, nsfw_recommendations } = data;
   const totalTags = keywords?.total_tags_found || 0;
 
+  const topKeyword = keywords?.search_sfw_queries?.[0] || '탐험가';
+  
   return (
     <div className="fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-        <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
-          분석 완료! 당신의 <span className="highlight">인스타 취향 추천</span>은...
+      <div style={{ textAlign: 'center', marginBottom: '3rem', padding: '2rem', background: 'rgba(255,255,255,0.02)', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <h2 style={{ fontSize: '1.4rem', color: 'var(--text-muted)', marginBottom: '1rem', fontWeight: 500 }}>
+          분석 완료! 당신의 인스타 자아는...
         </h2>
-        <p style={{ color: 'var(--text-muted)' }}>
-          총 {totalTags.toLocaleString()}개의 태그 및 키워드를 분석한 결과입니다.
+        <h1 style={{ fontSize: '3rem', marginBottom: '1rem', letterSpacing: '-1px' }}>
+          <span className="gradient-text">#{topKeyword}</span> 마니아
+        </h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>
+          총 {totalTags.toLocaleString()}개의 흔적을 분석해 맞춤 콘텐츠를 찾았습니다.
         </p>
       </div>
       
@@ -60,6 +65,7 @@ export default function ResultPage() {
         items={sfw_recommendations} 
         icon={<Hash size={24} />} 
         colorClass="sfw-glow"
+        emptyMessage="일반 취향 키워드를 충분히 찾지 못했습니다. 더 많은 인스타 활동이 필요해요!"
       />
 
       <Recommendations 
@@ -67,15 +73,26 @@ export default function ResultPage() {
         items={nsfw_recommendations} 
         icon={<Flame size={24} color="#ff6b6b" />} 
         colorClass="nsfw-glow"
+        emptyMessage="19금 취향이 전혀 발견되지 않았습니다. 아주 건전한 인스타 라이프를 즐기고 계시네요! 😇"
       />
 
-      <div style={{ textAlign: 'center', marginTop: '3rem' }}>
+      <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '3.5rem' }}>
+        <button 
+          className="glass-card"
+          style={{ padding: '1rem 2rem', fontSize: '1.1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.2)' }}
+          onClick={() => {
+            navigator.clipboard.writeText(window.location.href);
+            alert('결과 페이지 링크가 복사되었습니다!');
+          }}
+        >
+          🔗 결과 공유하기
+        </button>
         <button 
           className="gradient-btn"
           style={{ padding: '1rem 2rem', fontSize: '1.1rem', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
           onClick={() => navigate('/')}
         >
-          <RefreshCw size={18} /> 다른 계정 데이터로 다시 분석하기
+          <RefreshCw size={18} /> 다시 테스트하기
         </button>
       </div>
     </div>
