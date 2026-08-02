@@ -71,7 +71,15 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
 
     STOP_WORDS = {"일상", "소통", "맞팔", "선팔", "좋아요반사", "f4f", "ootd", "좋아요", "팔로우"}
     # 기존 파일 최상단에 있는 HIDDEN_MAPPING 키워드들을 명시적 숨겨진(Hidden) 키워드로 활용합니다.
-    
+    POWERFUL_ADULT_QUERIES = [
+    # 한국어
+    "야한 동영상", "성인 콘텐츠", "야동", "에로틱 영상", "섹시한 영상",
+    "노브라 노팬티", "망사 의상", "섹시 브라", "섹시 팬티", "예쁜 엉덩이",
+    "레즈비언 영상", "BDSM 콘텐츠",
+    # 영어
+    "erotic video", "adult video", "adult movie", "sex scene", "porn video",
+    "lingerie model", "sexy body", "lesbian scene", "BDSM content"
+]
     EXPLICIT_HIDDEN_KEYWORDS = set(HIDDEN_MAPPING.keys())
     IMPLICIT_HIDDEN_KEYWORDS = {"반캠", "직캠", "섹시", "요가", "비키니", "룩북", "화보", "바디프로필"}
 
