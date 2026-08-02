@@ -1,27 +1,29 @@
-# 🔍 Insta 1-Pick (인스타 1픽)
+# 🔍 Insta Taste Recommender (인스타 취향 분석 추천기)
 
-> **"당신의 무의식이 선택한 진짜 최애는 누구일까요?"**  
-> 사용자가 인스타그램 데이터(ZIP)를 업로드하면, 알고리즘(좋아요, 저장, 스토리 시청 등)을 분석하여 **내가 가장 집착하는 1명의 계정(1-Pick)**을 찾아내는 웹 서비스입니다.
+> **"당신이 가장 끌리는 해시태그와 은밀한 취향은 무엇인가요?"**  
+> 사용자가 인스타그램 데이터(ZIP)를 업로드하면, 무의식적으로 반응(좋아요, 저장, 스토리 시청 등)을 남긴 해시태그를 추출하여 당신만의 **맞춤형 취향 콘텐츠를 실시간으로 스크래핑(DuckDuckGo)하여 추천**해주는 웹 서비스입니다.
 
 ---
 
 ## ✨ 핵심 기능 (Features)
 
-### 👑 1. 무의식 최애 계정(1-Pick) 추적
-- **1-Pick 점수 공식**: `(좋아요×2) + (비밀 저장×3) + (스토리 시청×1) + (스토리 반응×4)`
-- 인스타그램의 단순한 팔로잉/팔로워 목록이 아닌, 실제 상호작용 빈도와 깊이를 분석하여 가장 점수가 높은 1위 계정을 선별합니다.
-- 아깝게 1위를 놓친 2~5위(Runner-Ups) 계정들의 명단과 점수도 함께 제공합니다.
+### 👑 1. 심층 키워드 추출 & 가중치 분석
+- **취향 점수 공식**: `(스토리 시청×1) + (좋아요×2) + (비밀 저장×3) + (스토리 반응×4)`
+- 인스타그램에 남긴 활동 내역을 텍스트 기반(해시태그, 카테고리 라벨)으로 파싱하여, 가장 많이, 가장 깊게 반응한 핵심 키워드(SFW/NSFW)를 도출합니다.
 
-### 🛡️ 2. 안전한 데이터 분석 체계
-- **대용량 파일 인메모리 스트리밍 (In-Memory Streaming)**: 서버리스 환경(Vercel)의 하드디스크 한계(500MB)를 극복하기 위해, 기가바이트(GB) 단위의 파일이라도 디스크에 풀지 않고 필요한 JSON 파일 4개만 메모리로 읽어들여 분석합니다.
-- **분석 결과 안전 보관**: 분석된 최종 요약(1-Pick 점수 및 순위)만 Supabase 데이터베이스에 안전하게 보관되며, 언제든 결과를 다시 조회할 수 있습니다.
+### 🛡️ 2. 우회 스크래핑 기반 콘텐츠 추천 (Vector DB ❌ -> Real-time Search ⭕)
+- **19금/선정적 단어 필터링 및 우회 매핑**: 성인인증에 걸리지 않는 대체 단어(예: 야동 -> 화보)로 자동 매핑하여 안전하게 검색을 수행합니다.
+- **실시간 DuckDuckGo 스크래핑**: 별도의 무거운 Vector DB(pgvector, FAISS)를 사용하지 않고 `site:instagram.com` 검색 쿼리를 통해 최신 트렌드 인스타 게시물을 실시간으로 가져옵니다. Vercel의 Serverless 환경에 완벽하게 최적화되어 메모리 부담이 적습니다.
+
+### 🚀 3. 대용량 파일 스트리밍 파싱
+- **In-Memory ZIP Streaming**: Vercel의 500MB 디스크 제한을 우회하기 위해, 클라이언트가 청크 단위로 업로드한 바이너리를 합친 뒤 압축을 풀지 않고 메모리상에서 필요한 JSON 파일 4개만 추출하여 파싱합니다.
 
 ---
 
 ## 🛠️ 기술 스택 (Tech Stack)
 
-- **Frontend**: React 18, Vite, React Router DOM v7, Lucide React, Canvas Confetti, Vanilla CSS (Glassmorphism)
-- **Backend**: Python 3.12+, FastAPI (메모리 스트리밍 파서 도입)
+- **Frontend**: React 18, Vite, React Router DOM v7, Lucide React, Vanilla CSS (Glassmorphism + Neon Glow)
+- **Backend**: Python 3.12+, FastAPI, `ddgs` (DuckDuckGo Search)
 - **Database / Serverless**: Supabase (PostgreSQL), Vercel Serverless Functions
 
 ---
@@ -34,7 +36,7 @@ cd backend
 pip install -r requirements.txt
 python -m uvicorn app.main:app --port 8000
 ```
-*(또는 로컬 엔진 테스트를 위해 `python test_run.py`를 실행할 수 있습니다.)*
+*(로컬 엔진 테스트: `python test_run.py`)*
 
 ### 2. 프론트엔드 (React Vite)
 ```bash

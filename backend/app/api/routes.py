@@ -7,7 +7,8 @@ from typing import Dict, Any
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from app.services.parser import InstaParser, InstaMemoryParser
-from app.services.one_pick import analyze_one_pick
+from app.services.keyword_extractor import extract_taste_keywords
+from app.services.search_service import get_recommendations_for_keywords
 from app.services.db_service import save_analysis_result, fetch_analysis_result
 from app.utils.cleanup import create_job, cleanup_expired_jobs
 
@@ -98,7 +99,17 @@ async def upload_chunk(
 
             # Parse and analyze
             parser = InstaMemoryParser(extracted_data)
-            analysis_result = analyze_one_pick(parser)
+            keywords_result = extract_taste_keywords(parser)
+            
+            # Search top 2 keywords for SFW and NSFW to avoid Vercel timeout
+            sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:2], max_per_keyword=3)
+            nsfw_recs = get_recommendations_for_keywords(keywords_result["search_nsfw_queries"][:2], max_per_keyword=3)
+            
+            analysis_result = {
+                "keywords": keywords_result,
+                "sfw_recommendations": sfw_recs,
+                "nsfw_recommendations": nsfw_recs
+            }
 
             job_id = create_job()
             save_analysis_result(job_id, analysis_result)
@@ -124,7 +135,16 @@ async def upload_chunk(
 async def upload_payload(payload: JsonPayload, background_tasks: BackgroundTasks):
     try:
         parser = InstaMemoryParser(payload.files)
-        analysis_result = analyze_one_pick(parser)
+        keywords_result = extract_taste_keywords(parser)
+        
+        sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:2], max_per_keyword=3)
+        nsfw_recs = get_recommendations_for_keywords(keywords_result["search_nsfw_queries"][:2], max_per_keyword=3)
+        
+        analysis_result = {
+            "keywords": keywords_result,
+            "sfw_recommendations": sfw_recs,
+            "nsfw_recommendations": nsfw_recs
+        }
 
         job_id = create_job()
         save_analysis_result(job_id, analysis_result)
@@ -151,7 +171,16 @@ async def upload_zip(background_tasks: BackgroundTasks, file: UploadFile = File(
         shutil.rmtree(temp_dir)
 
         parser = InstaMemoryParser(extracted_data)
-        analysis_result = analyze_one_pick(parser)
+        keywords_result = extract_taste_keywords(parser)
+        
+        sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:2], max_per_keyword=3)
+        nsfw_recs = get_recommendations_for_keywords(keywords_result["search_nsfw_queries"][:2], max_per_keyword=3)
+        
+        analysis_result = {
+            "keywords": keywords_result,
+            "sfw_recommendations": sfw_recs,
+            "nsfw_recommendations": nsfw_recs
+        }
 
         job_id = create_job()
         save_analysis_result(job_id, analysis_result)

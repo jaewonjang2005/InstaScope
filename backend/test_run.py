@@ -1,6 +1,7 @@
 import os
 from app.services.parser import InstaParser
-from app.services.one_pick import analyze_one_pick
+from app.services.keyword_extractor import extract_taste_keywords
+from app.services.search_service import get_recommendations_for_keywords
 import time
 import sys
 import io
@@ -17,21 +18,24 @@ def test_full_dataset():
     parser = InstaParser(base_dir)
     print("Parser initialized.")
     
-    result = analyze_one_pick(parser)
+    keywords_result = extract_taste_keywords(parser)
     
-    print("\n--- 1-Pick Analysis Results ---")
-    if result.get("top_pick"):
-        print(f"[Top 1 Pick]: {result['top_pick']['username']} (Score: {result['top_pick']['score']})")
-        print(f"  - Likes: {result['top_pick']['likes_count']}")
-        print(f"  - Saves: {result['top_pick']['saves_count']}")
-        print(f"  - Story Views: {result['top_pick']['story_views_count']}")
-        print(f"  - Story Likes: {result['top_pick']['story_likes_count']}")
+    print("\n--- Keyword Extraction Results ---")
+    print(f"Total Tags Found: {keywords_result['total_tags_found']}")
+    print(f"Top SFW Search Queries: {keywords_result['search_sfw_queries']}")
+    print(f"Top NSFW Search Queries: {keywords_result['search_nsfw_queries']}")
     
-    print("\n[Runner-Ups]:")
-    for ru in result.get("runner_ups", []):
-        print(f"  {ru['username']} (Score: {ru['score']})")
+    print("\n--- Fetching Recommendations (DuckDuckGo) ---")
+    sfw_recs = get_recommendations_for_keywords(keywords_result['search_sfw_queries'][:2], max_per_keyword=2)
+    nsfw_recs = get_recommendations_for_keywords(keywords_result['search_nsfw_queries'][:2], max_per_keyword=2)
+    
+    print("\n[SFW Recommendations]:")
+    for r in sfw_recs:
+        print(f"  - [{r['matched_keyword']}] {r['title']} ({r['url']})")
         
-    print(f"\nTotal Accounts Interacted: {result['total_accounts_interacted']}")
+    print("\n[NSFW Recommendations]:")
+    for r in nsfw_recs:
+        print(f"  - [{r['matched_keyword']}] {r['title']} ({r['url']})")
 
     elapsed_time = time.time() - start_time
     print(f"\nExecution Time: {elapsed_time:.2f} seconds")

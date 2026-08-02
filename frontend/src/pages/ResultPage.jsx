@@ -1,9 +1,8 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import TopPickCard from '../components/TopPickCard';
-import RunnerUpList from '../components/RunnerUpList';
+import Recommendations from '../components/Recommendations';
 import confetti from 'canvas-confetti';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Hash, Flame } from 'lucide-react';
 
 export default function ResultPage() {
   const location = useLocation();
@@ -30,30 +29,45 @@ export default function ResultPage() {
 
   if (!data) return null;
 
-  const { top_pick, runner_ups, total_accounts_interacted } = data;
+  const { keywords, sfw_recommendations, nsfw_recommendations } = data;
+  const totalTags = keywords?.total_tags_found || 0;
 
   return (
     <div className="fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
       <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
         <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
-          분석 완료! 당신의 <span className="highlight">최애 계정</span>은...
+          분석 완료! 당신의 <span className="highlight">인스타 취향 추천</span>은...
         </h2>
         <p style={{ color: 'var(--text-muted)' }}>
-          총 {total_accounts_interacted.toLocaleString()}개의 상호작용 계정 중 1위
+          총 {totalTags.toLocaleString()}개의 태그 및 키워드를 분석한 결과입니다.
         </p>
       </div>
-
-      {top_pick ? (
-        <TopPickCard pick={top_pick} />
-      ) : (
-        <div className="glass-card" style={{ padding: '3rem', textAlign: 'center' }}>
-          <p>충분한 데이터가 없어 1픽을 선정하지 못했습니다.</p>
+      
+      <div className="glass-card" style={{ marginBottom: '2rem', padding: '1.5rem', textAlign: 'center' }}>
+        <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>추출된 핵심 취향 키워드</h3>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
+          {keywords?.search_sfw_queries?.map((kw, i) => (
+             <span key={`sfw-${i}`} className="badge" style={{ padding: '0.4rem 0.8rem', background: 'rgba(255,255,255,0.1)', borderRadius: '20px' }}>#{kw}</span>
+          ))}
+          {keywords?.search_nsfw_queries?.map((kw, i) => (
+             <span key={`nsfw-${i}`} className="badge" style={{ padding: '0.4rem 0.8rem', background: 'rgba(255,100,100,0.1)', color: '#ff8e53', borderRadius: '20px' }}>#{kw}</span>
+          ))}
         </div>
-      )}
+      </div>
 
-      {runner_ups && runner_ups.length > 0 && (
-        <RunnerUpList runners={runner_ups} />
-      )}
+      <Recommendations 
+        title="일반 맞춤 추천 (SFW)" 
+        items={sfw_recommendations} 
+        icon={<Hash size={24} />} 
+        colorClass="sfw-glow"
+      />
+
+      <Recommendations 
+        title="은밀한 취향 추천 (NSFW/우회됨)" 
+        items={nsfw_recommendations} 
+        icon={<Flame size={24} color="#ff6b6b" />} 
+        colorClass="nsfw-glow"
+      />
 
       <div style={{ textAlign: 'center', marginTop: '3rem' }}>
         <button 
