@@ -326,9 +326,6 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         if all_hidden_tags:
             sorted_hidden = sorted(all_hidden_tags, key=lambda x: x[1], reverse=True)
             for tag, score in sorted_hidden:
-                # 한국 영상 자료원 등 엉뚱한 결과 방지를 위해 맥락 추가 (단, 유저의 태그를 그대로 유지)
-                combined_hidden.append(f"{tag} 모델")
-                combined_hidden.append(f"{tag} 화보")
                 combined_hidden.append(tag)
         
         # 2. 일반 태그 중에서 주된 취향(Top 3)에는 못 들었지만 서브로 자주 등장하는 취향 추가
