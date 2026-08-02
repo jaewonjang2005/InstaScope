@@ -121,16 +121,27 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         t = tag.lower()
         
         for bad in EXPLICIT_HIDDEN_KEYWORDS:
-            # False positive 방지 규칙
+            # False positive 방지 규칙 (영어)
             if bad == 'av' and t != 'av':
                 continue
             if bad == 'porn' and t.endswith('porn') and t not in ('porn', 'pornhub'):
                 continue
             if bad == 'sex' and t != 'sex':
                 continue
+            # False positive 방지 규칙 (한국어)
             if bad == '가슴' and any(x in t for x in ['닭가슴살', '가슴뛰는', '가슴아픈', '가슴속', '가슴뭉클']):
                 continue
             if bad == '야한' and any(x in t for x in ['해야한', '다양한', '유리한', '불리한', '피곤한', '미안한', '치열한', '야한다', '야한데', '야한지']):
+                continue
+            if bad == '야동' and '심야동' in t:
+                continue
+            if bad == '노출' and any(x in t for x in ['장노출', '이중노출', '노출콘크리트', '과다노출']):
+                continue
+            if bad == '엉덩이' and '엉덩이탐정' in t:
+                continue
+            if bad == '자위' and '자위대' in t:
+                continue
+            if bad == '섹스' and '섹스피어' in t:
                 continue
             if bad == '은꼴' and '닮은꼴' in t:
                 continue
@@ -147,6 +158,10 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
             if imp == '섹시' and '섹시야마' in t:
                 continue
             if imp == '화보' and '패션화보' in t:
+                continue
+            if imp == '반캠' and any(x in t for x in ['반캠핑', '반캠프']):
+                continue
+            if imp == '직캠' and any(x in t for x in ['직캠프', '직캠핑']):
                 continue
                 
             if imp in t:
