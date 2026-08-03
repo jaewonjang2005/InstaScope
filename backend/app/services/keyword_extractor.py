@@ -417,10 +417,12 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
             if tag not in combined_hidden:
                 combined_hidden.append(tag)
         
-        # 2. 숨겨진 태그가 부족할 경우, 일반 태그(SFW) 중에서 차출
+        # 3. 숨겨진 태그가 부족할 경우, 일반 태그(SFW) 중에서 차출 (단, 메인 취향 Top 5는 중복 방지를 위해 제외)
         sorted_general = sorted(sfw_tags.items(), key=lambda x: x[1], reverse=True)
+        top_sfw = [t[0] for t in sorted_general[:5]]
+        
         for tag, score in sorted_general:
-            if tag not in combined_hidden and len(combined_hidden) < num_queries:
+            if tag not in combined_hidden and tag not in top_sfw and len(combined_hidden) < num_queries:
                 combined_hidden.append(tag)
         
         search_hidden_queries = list(dict.fromkeys(combined_hidden))[:num_queries]
