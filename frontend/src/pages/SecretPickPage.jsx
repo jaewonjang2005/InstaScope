@@ -125,7 +125,7 @@ export default function SecretPickPage() {
           {isBuldakMode ? <span style={{fontSize: '28px', marginRight: '0.5rem', verticalAlign: 'middle'}}>🌶️</span> : (isSpicyMode ? <Skull size={28} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} /> : <Flame size={28} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} />)}
           {isBuldakMode ? '당신의 불닭맛 취향 (Buldak Pick)' : (isSpicyMode ? '당신의 진짜 매운맛 취향 (Spicy Pick)' : '당신의 진짜 서브 취향 (Secret Pick)')}
         </h2>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, background: isBuldakMode ? 'linear-gradient(to right, #8B0000, #4A0000)' : (isSpicyMode ? 'linear-gradient(to right, #ff0000, #cc0000)' : 'linear-gradient(to right, #ff6b6b, #ff8e53)'), WebkitBackgroundClip: 'text', color: 'transparent', margin: 0 }}>
+        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, backgroundImage: isBuldakMode ? 'linear-gradient(to right, #8B0000, #4A0000)' : (isSpicyMode ? 'linear-gradient(to right, #ff0000, #cc0000)' : 'linear-gradient(to right, #ff6b6b, #ff8e53)'), WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', margin: 0 }}>
           {currentKeywords?.[0] ? `#${currentKeywords[0]}` : '비밀의 방'}
         </h1>
         <p style={{ color: 'var(--text-muted)', marginTop: '1rem', lineHeight: '1.6' }}>

@@ -71,6 +71,8 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
                     time_weight = 3.0
                 elif days_ago <= 180:
                     time_weight = 1.5
+                elif days_ago >= 365:
+                    time_weight = 0.2  # 1년 넘은 옛날 데이터는 대폭 축소
             
             for t in tags:
                 if len(t) < 2:
