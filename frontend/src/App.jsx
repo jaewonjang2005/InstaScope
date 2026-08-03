@@ -5,6 +5,7 @@ import UploadPage from './pages/UploadPage';
 import LoadingPage from './pages/LoadingPage';
 import ResultPage from './pages/ResultPage';
 import SecretPickPage from './pages/SecretPickPage';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import './App.css';
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
         }}>
           Insta Taste Recommender — 당신의 숨겨진 취향을 찾아드립니다 © 2026.
         </footer>
+        <SpeedInsights />
       </div>
     </BrowserRouter>
   );

@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vercel/speed-insights": "^2.0.0",
     "axios": "^1.19.0",
     "canvas-confetti": "^1.9.4",
     "chart.js": "^4.4.7",
