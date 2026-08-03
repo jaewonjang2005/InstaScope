@@ -34,41 +34,23 @@ def is_valid_instagram_url(url: str) -> bool:
         print(f"URL validation error for {url}: {e}")
         return False
 
-def get_recommendations_for_keywords(keywords: list, tag_to_urls: dict = None, max_per_keyword: int = 2, used_urls: set = None) -> list:
+def get_recommendations_for_keywords(keywords: list) -> list:
     """
-    키워드를 기반으로 추천 콘텐츠 링크를 생성합니다.
-    (사용자의 실제 좋아요 데이터 기반 URL만 제공하며, 중복된 URL은 차단합니다.)
+    키워드를 기반으로 인스타그램 연관 게시물 검색 링크를 반환합니다.
+    (과거 사용자가 반응한 게시물이 아닌, 새로운 최신 트렌드를 탐색하도록 유도)
     """
-    if used_urls is None:
-        used_urls = set()
-        
     all_recommendations = []
     
     if not keywords:
         return []
         
-    import random
-    
     for kw in keywords:
         safe_kw = kw.replace(" ", "")
-        
-        # 1. 실제 사용자가 반응했던 포스트 URL이 있다면 무작위로 추출
-        if tag_to_urls and kw.lower() in tag_to_urls and tag_to_urls[kw.lower()]:
-            urls = list(tag_to_urls[kw.lower()])
-            random.shuffle(urls)
-            
-            added_count = 0
-            for url in urls:
-                if url not in used_urls:
-                    used_urls.add(url)
-                    all_recommendations.append({
-                        "title": f"#{safe_kw} 관련 내 취향 게시물",
-                        "url": url,
-                        "snippet": f"과거에 반응을 남겼던 #{safe_kw} 태그의 게시물입니다.",
-                        "matched_keyword": kw
-                    })
-                    added_count += 1
-                    if added_count >= max_per_keyword:
-                        break
+        all_recommendations.append({
+            "title": f"#{safe_kw} 연관 인기 게시물 둘러보기",
+            "url": f"https://www.instagram.com/explore/tags/{safe_kw}/",
+            "snippet": f"인스타그램에서 #{safe_kw} 태그와 관련된 새로운 게시물들을 탐색해보세요.",
+            "matched_keyword": kw
+        })
                         
     return all_recommendations

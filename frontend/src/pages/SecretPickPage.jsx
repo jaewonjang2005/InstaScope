@@ -9,7 +9,6 @@ export default function SecretPickPage() {
   const navigate = useNavigate();
   const data = location.state;
   const [isSpicyMode, setIsSpicyMode] = useState(false);
-  const [isBuldakMode, setIsBuldakMode] = useState(false);
 
   useEffect(() => {
     if (!data) {
@@ -31,15 +30,12 @@ export default function SecretPickPage() {
 
   if (!data) return null;
 
-  const { hidden_recommendations, hidden_keywords, spicy_recommendations, raw_hidden_tags, buldak_recommendations, buldak_tags } = data;
+  const { hidden_recommendations, hidden_keywords, spicy_recommendations, raw_hidden_tags } = data;
 
   let currentKeywords = hidden_keywords;
   let currentRecommendations = hidden_recommendations;
 
-  if (isBuldakMode && buldak_tags?.length > 0) {
-    currentKeywords = buldak_tags;
-    currentRecommendations = buldak_recommendations;
-  } else if (isSpicyMode && raw_hidden_tags?.length > 0) {
+  if (isSpicyMode && raw_hidden_tags?.length > 0) {
     currentKeywords = raw_hidden_tags;
     currentRecommendations = spicy_recommendations;
   }
@@ -64,68 +60,70 @@ export default function SecretPickPage() {
           <ArrowLeft size={20} /> 돌아가기
         </button>
 
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button 
-            onClick={() => {
-              setIsSpicyMode(!isSpicyMode);
-              if (!isSpicyMode) setIsBuldakMode(false);
-            }}
-            style={{ 
-              background: isSpicyMode ? 'linear-gradient(45deg, #ff0000, #990000)' : 'rgba(255,107,107,0.1)', 
-              border: isSpicyMode ? 'none' : '1px solid rgba(255,107,107,0.4)',
-              color: isSpicyMode ? '#fff' : '#ff8e53', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span style={{ 
+            color: isSpicyMode ? '#ff0000' : 'var(--text-muted)', 
+            fontWeight: 'bold', 
+            fontSize: '0.9rem',
+            transition: 'color 0.3s ease'
+          }}>
+            매운맛 🔥
+          </span>
+          <label style={{
+            position: 'relative',
+            display: 'inline-block',
+            width: '50px',
+            height: '24px'
+          }}>
+            <input 
+              type="checkbox" 
+              checked={isSpicyMode} 
+              onChange={() => setIsSpicyMode(!isSpicyMode)} 
+              style={{ opacity: 0, width: 0, height: 0 }} 
+            />
+            <span style={{
+              position: 'absolute',
               cursor: 'pointer',
-              padding: '0.5rem 1rem',
-              borderRadius: '20px',
-              fontSize: '0.9rem',
-              fontWeight: 'bold',
-              transition: 'all 0.3s ease'
-            }}
-          >
-            <Skull size={16} /> {isSpicyMode ? '매운맛 OFF' : '매운맛 ON 🔥'}
-          </button>
-
-          <button 
-            onClick={() => {
-              if (buldak_tags?.length > 0) {
-                setIsBuldakMode(!isBuldakMode);
-                if (!isBuldakMode) setIsSpicyMode(false);
-              } else {
-                alert('관련된 19금 취향이 발견되지 않아 안전장치가 작동했습니다. 불닭맛 모드에 접근할 수 없습니다.');
-              }
-            }}
-            disabled={!buldak_tags || buldak_tags.length === 0}
-            style={{ 
-              background: isBuldakMode ? 'linear-gradient(45deg, #8B0000, #4A0000)' : 'rgba(139,0,0,0.1)', 
-              border: isBuldakMode ? 'none' : '1px solid rgba(139,0,0,0.4)',
-              color: isBuldakMode ? '#fff' : (!buldak_tags || buldak_tags.length === 0 ? 'rgba(139,0,0,0.3)' : '#8B0000'), 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '0.5rem', 
-              cursor: (!buldak_tags || buldak_tags.length === 0) ? 'not-allowed' : 'pointer',
-              padding: '0.5rem 1rem',
-              borderRadius: '20px',
-              fontSize: '0.9rem',
-              fontWeight: 'bold',
-              transition: 'all 0.3s ease',
-              opacity: (!buldak_tags || buldak_tags.length === 0) ? 0.6 : 1
-            }}
-            title={(!buldak_tags || buldak_tags.length === 0) ? "19금 관련 취향이 없어 접근할 수 없습니다" : "순수 19금 불닭맛 보기"}
-          >
-            🌶️ {isBuldakMode ? '불닭맛 OFF' : '불닭맛 ON'}
-          </button>
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: isSpicyMode ? '#ff0000' : 'rgba(255,107,107,0.2)',
+              transition: '.4s',
+              borderRadius: '24px'
+            }}>
+              <span style={{
+                position: 'absolute',
+                content: '""',
+                height: '16px',
+                width: '16px',
+                left: isSpicyMode ? '30px' : '4px',
+                bottom: '4px',
+                backgroundColor: 'white',
+                transition: '.4s',
+                borderRadius: '50%',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+              }} />
+            </span>
+          </label>
         </div>
       </div>
 
-      <div style={{ textAlign: 'center', marginBottom: '3rem', padding: '2rem', background: isBuldakMode ? 'rgba(139,0,0,0.1)' : (isSpicyMode ? 'rgba(255,0,0,0.1)' : 'rgba(255,107,107,0.05)'), borderRadius: '24px', border: isBuldakMode ? '1px solid rgba(139,0,0,0.4)' : (isSpicyMode ? '1px solid rgba(255,0,0,0.4)' : '1px solid rgba(255,107,107,0.2)') }}>
-        <h2 style={{ fontSize: '1.4rem', color: isBuldakMode ? '#8B0000' : (isSpicyMode ? '#ff3333' : '#ff6b6b'), marginBottom: '1rem', fontWeight: 500 }}>
-          {isBuldakMode ? <span style={{fontSize: '28px', marginRight: '0.5rem', verticalAlign: 'middle'}}>🌶️</span> : (isSpicyMode ? <Skull size={28} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} /> : <Flame size={28} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} />)}
-          {isBuldakMode ? '당신의 불닭맛 취향 (Buldak Pick)' : (isSpicyMode ? '당신의 진짜 매운맛 취향 (Spicy Pick)' : '당신의 진짜 서브 취향 (Secret Pick)')}
+      <div style={{
+        background: isSpicyMode ? 'rgba(255, 0, 0, 0.05)' : 'rgba(255, 107, 107, 0.03)',
+        border: `1px solid ${isSpicyMode ? 'rgba(255, 0, 0, 0.2)' : 'rgba(255, 107, 107, 0.1)'}`,
+        borderRadius: '20px',
+        padding: '2rem',
+        marginBottom: '2rem',
+        boxShadow: isSpicyMode ? '0 10px 30px rgba(255, 0, 0, 0.1)' : '0 10px 30px rgba(255, 107, 107, 0.05)',
+        transition: 'all 0.5s ease',
+        textAlign: 'center'
+      }}>
+        <h2 style={{ fontSize: '1.4rem', color: isSpicyMode ? '#ff3333' : '#ff6b6b', marginBottom: '1rem', fontWeight: 500 }}>
+          {isSpicyMode ? <Skull size={28} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} /> : <Flame size={28} style={{ verticalAlign: 'middle', marginRight: '0.5rem' }} />}
+          {isSpicyMode ? '당신의 진짜 매운맛 취향 (Spicy Pick)' : '당신의 진짜 서브 취향 (Secret Pick)'}
         </h2>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, backgroundImage: isBuldakMode ? 'linear-gradient(to right, #8B0000, #4A0000)' : (isSpicyMode ? 'linear-gradient(to right, #ff0000, #cc0000)' : 'linear-gradient(to right, #ff6b6b, #ff8e53)'), WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', margin: 0 }}>
+        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, backgroundImage: isSpicyMode ? 'linear-gradient(to right, #ff0000, #cc0000)' : 'linear-gradient(to right, #ff6b6b, #ff8e53)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', margin: 0 }}>
           {currentKeywords?.[0] ? `#${currentKeywords[0]}` : '비밀의 방'}
         </h1>
         <p style={{ color: 'var(--text-muted)', marginTop: '1rem', lineHeight: '1.6' }}>

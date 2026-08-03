@@ -74,13 +74,17 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
                 elif days_ago >= 365:
                     time_weight = 0.2  # 1년 넘은 옛날 데이터는 대폭 축소
             
+            tag_len = len(tags)
             for t in tags:
                 if len(t) < 2:
                     continue
                 tag_clean = t.lower()
                 
                 if tag_clean not in tag_stats:
-                    tag_stats[tag_clean] = {'public': 0.0, 'private': 0.0}
+                    tag_stats[tag_clean] = {'public': 0.0, 'private': 0.0, 'doc_count': 0, 'total_siblings': 0}
+                
+                tag_stats[tag_clean]['doc_count'] += 1
+                tag_stats[tag_clean]['total_siblings'] += tag_len
                 
                 # Public: 좋아요, 스토리 / Private: 저장, 컬렉션
                 if action_type in ['liked', 'story']:
@@ -103,35 +107,65 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         collections = parser.parse_saved_collections()
         for col in collections:
             col_tags = col.get('hashtags', [])
+            tag_len = len(col_tags)
             for t in col_tags:
                 if len(t) < 2:
                     continue
                 tag_clean = t.lower()
                 if tag_clean not in tag_stats:
-                    tag_stats[tag_clean] = {'public': 0.0, 'private': 0.0}
+                    tag_stats[tag_clean] = {'public': 0.0, 'private': 0.0, 'doc_count': 0, 'total_siblings': 0}
+                
+                tag_stats[tag_clean]['doc_count'] += 1
+                tag_stats[tag_clean]['total_siblings'] += tag_len
                 tag_stats[tag_clean]['private'] += 5.0  # 컬렉션은 시간 정보가 없으므로 고정 가중치 5.0
     except Exception as e:
         print(f"Collection parse error: {e}")
 
     # === [다층적 상호작용 기반 '찐 취향(True Affinity)' 산출] ===
-    STOP_WORDS = {"일상", "소통", "맞팔", "선팔", "좋아요반사", "f4f", "ootd", "좋아요", "팔로우", "데일리"}
+    # 하드코딩된 STOP_WORDS 대신 TF-IDF와 동시 출현(Sibling) 맥락을 활용하여 범용 태그를 수학적으로 필터링합니다.
     
-    # 1. 태그별 Total Volume 계산 및 Private Score 중앙값(Median) 도출
+    total_posts = len(liked) + len(saved) + len(stories_viewed) + len(story_likes)
+    if total_posts == 0:
+        total_posts = 1
+        
+    import statistics
+    import math
+
     private_scores = []
-    tag_scores = {}  # SFW(대중적 취향) 정렬을 위한 총 볼륨 저장용
+    tag_scores = {}  # SFW(대중적 취향) 정렬을 위한 최종 볼륨 저장용
     
     for tag, stats in tag_stats.items():
-        total = stats['public'] + stats['private']
+        doc_count = stats.get('doc_count', 1)
+        # IDF (Inverse Document Frequency): 태그가 여러 게시물에 너무 널리(범용적으로) 쓰일수록 가중치 감소
+        idf = math.log10((total_posts + 1) / doc_count)
+        
+        # 기본 점수에 IDF를 곱하여 최종 TF-IDF 점수 도출
+        tf_idf_public = stats['public'] * idf
+        tf_idf_private = stats['private'] * idf
+        
+        # Sibling Penalty: 한 게시물에 해시태그가 너무 많으면(평균 15개 이상) 어뷰징/범용 태그일 확률이 높음
+        avg_siblings = stats.get('total_siblings', 0) / doc_count
+        sibling_penalty = 1.0
+        if avg_siblings > 15:
+            sibling_penalty = 15 / avg_siblings
+            
+        final_public = tf_idf_public * sibling_penalty
+        final_private = tf_idf_private * sibling_penalty
+        
+        # 내부 구조 갱신
+        stats['public'] = final_public
+        stats['private'] = final_private
+        
+        total = final_public + final_private
         tag_scores[tag] = total
         
-        if tag not in STOP_WORDS and stats['private'] > 0:
-            private_scores.append(stats['private'])
+        if final_private > 0:
+            private_scores.append(final_private)
             
-    import statistics
     median_private = statistics.median(private_scores) if private_scores else 0
 
     # 2. SFW(대중적 취향) Top 10 추출
-    sorted_by_total = sorted([t for t in tag_scores.items() if t[0] not in STOP_WORDS], key=lambda x: x[1], reverse=True)
+    sorted_by_total = sorted(tag_scores.items(), key=lambda x: x[1], reverse=True)
     top_sfw = [t[0] for t in sorted_by_total[:15]]
 
     # 3. Mathematical Hidden (수학적 은밀한 취향) 도출
@@ -443,33 +477,6 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
                 
         return search_sfw_queries, search_hidden_queries
 
-
-    # --- [사용 예시] ---
-    if __name__ == '__main__':
-        # 이전 단계에서 분류된 가상의 데이터와 라우팅 결과라고 가정합니다.
-        sample_explicit_hidden = {"포르노": 5, "브라": 12}
-        sample_implicit_hidden = {"섹시": 25, "직캠": 30, "요가": 15}
-        sample_sfw_tags = {"게임": 20, "캠핑": 18}
-
-        # --- 시나리오 1: HIDDEN 라우팅 ---
-        print("===== 시나리오 1: HIDDEN 라우팅 =====")
-        final_queries_1 = generate_final_queries(sample_explicit_hidden, sample_implicit_hidden, sample_sfw_tags, ["ITZY"])
-        print(f"최종 검색어: {final_queries_1}\n")
-        # 예상 출력: ['ITZY', 'ITZY 추천', '직캠 모델', '직캠 화보', '직캠']
-
-        # --- 시나리오 2: SFW 라우팅 ---
-        print("===== 시나리오 2: SFW 라우팅 =====")
-        final_queries_2 = generate_final_queries(sample_explicit_hidden, sample_implicit_hidden, sample_sfw_tags)
-        print(f"최종 검색어: {final_queries_2}\n")
-        # 예상 출력: ['게임', '캠핑']
-
-        # --- 시나리오 3: FALLBACK 라우팅 ---
-        print("===== 시나리오 3: FALLBACK 라우팅 =====")
-        final_queries_3 = generate_final_queries({}, {}, {})
-        print(f"최종 검색어: {final_queries_3}\n")
-        # 예상 출력: ['인기 있는 이미지', '추천 콘텐츠']
-            
-        # === [END_DYNAMIC_ROUTING_LOGIC] ===
 
     def is_similar(a: str, b: str) -> bool:
         a_low = a.lower().replace(" ", "")
