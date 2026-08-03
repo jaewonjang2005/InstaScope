@@ -346,6 +346,36 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
             # 그렇지 않으면 일반적인 콘텐츠 파이프라인으로 라우팅
             return "SFW"
 
+    def is_similar(a: str, b: str) -> bool:
+        a_low = a.lower().replace(" ", "")
+        b_low = b.lower().replace(" ", "")
+        if a_low in b_low or b_low in a_low:
+            return True
+        import difflib
+        return difflib.SequenceMatcher(None, a_low, b_low).ratio() >= 0.7
+
+    def filter_similar_tags(tags_list, compare_against_lists=None, max_len=5):
+        if compare_against_lists is None:
+            compare_against_lists = []
+        filtered = []
+        for tag in tags_list:
+            is_overlap = False
+            for compare_list in compare_against_lists:
+                for c_tag in compare_list:
+                    if is_similar(tag, c_tag):
+                        is_overlap = True
+                        break
+                if is_overlap: break
+            
+            for f_tag in filtered:
+                if is_similar(tag, f_tag):
+                    is_overlap = True
+                    break
+                    
+            if not is_overlap and len(filtered) < max_len:
+                filtered.append(tag)
+        return filtered
+
     # --- [실제 실행 로직 및 기존 API 포맷에 맞춘 Return 매핑] ---
     explicit_hidden, implicit_hidden, sfw = preprocess_and_classify_tags(tag_scores)
     
