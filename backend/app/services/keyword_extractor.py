@@ -3,31 +3,31 @@ from typing import Dict, Any, List, Tuple
 
 # 19금 및 선정적 단어 필터링 및 우회 사전 (Hidden Dictionary & Safe Mapping)
 HIDDEN_MAPPING = {
-    "야동": "화보",
-    "포르노": "룩북",
-    "섹스": "로맨스",
-    "19금": "성인",
-    "노출": "비키니",
-    "섹시": "매력적인",
-    "가슴": "바디프로필",
-    "엉덩이": "애플힙",
-    "av": "화보",
-    "오나홀": "성인용품",
-    "자위": "힐링",
-    "은꼴": "섹시",
-    "야한": "매력적인",
-    "porn": "lookbook",
-    "sex": "romance",
-    "nsfw": "model",
-    "nude": "bikini",
-    "그라비아": "화보",
-    "gravure": "model",
-    "코스프레": "패션",
-    "cosplay": "fashion",
-    "수영복": "여름",
-    "맥심": "잡지",
-    "란제리": "패션",
-    "속옷": "패션"
+    "야동": "야동",
+    "포르노": "포르노",
+    "섹스": "섹스",
+    "19금": "19금",
+    "노출": "노출",
+    "섹시": "섹시",
+    "가슴": "가슴",
+    "엉덩이": "엉덩이",
+    "av": "av",
+    "오나홀": "오나홀",
+    "자위": "자위",
+    "은꼴": "은꼴",
+    "야한": "야한",
+    "porn": "porn",
+    "sex": "sex",
+    "nsfw": "nsfw",
+    "nude": "nude",
+    "그라비아": "그라비아",
+    "gravure": "gravure",
+    "코스프레": "코스프레",
+    "cosplay": "cosplay",
+    "수영복": "수영복",
+    "맥심": "맥심",
+    "란제리": "란제리",
+    "속옷": "속옷"
 }
 
 def is_hidden(tag: str) -> bool:
@@ -153,11 +153,11 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     # --- [데이터 전처리 및 분류 파트] ---
     # 기존 파일 최상단에 있는 HIDDEN_MAPPING 키워드들을 명시적 숨겨진(Hidden) 키워드로 활용합니다.
     EXPLICIT_HIDDEN_KEYWORDS = set(HIDDEN_MAPPING.keys())
+    
+    # 19금은 아니지만 다소 매운맛(노출 등)을 띠는 키워드 유지. 
+    # (애니메이션, 게임 등 건전한 서브컬처 키워드는 사전에서 삭제하여 오직 수학적 계산에 맡김)
     IMPLICIT_HIDDEN_KEYWORDS = {
-        "반캠", "직캠", "섹시", "요가", "비키니", "룩북", "화보", "바디프로필",
-        "애니", "anime", "버튜버", "vtuber", "홀로라이브", "hololive", 
-        "미소녀", "otaku", "오타쿠", "만화", "manga", "원신", "블루아카이브", "니케",
-        "코믹월드", "일러스트", "레이싱모델", "피팅모델", "풀빌라", "씹덕", "2d"
+        "반캠", "직캠", "섹시", "요가", "비키니", "룩북", "화보", "바디프로필", "레이싱모델", "피팅모델", "풀빌라"
     }
 
     def classify_tag_type(tag: str) -> str:
@@ -471,11 +471,15 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     
     # 화면에 보여주기 위한 raw tags 정렬
     sorted_sfw = sorted(sfw.items(), key=lambda x: x[1], reverse=True)
-    sorted_hidden = sorted(list(explicit_hidden.items()) + list(implicit_hidden.items()), key=lambda x: x[1], reverse=True)
+    
+    # Spicy Mode를 위한 찐 매운맛 키워드: 하드코딩 19금 키워드 + 수학적 극단치(Spicy Picks)
+    explicit_tags = [t[0] for t in sorted(explicit_hidden.items(), key=lambda x: x[1], reverse=True)]
+    spicy_picks = [t[0] for t in sorted_by_ratio[:5]] # 극단적 Private Ratio Top 5
+    raw_spicy_tags = list(dict.fromkeys(explicit_tags + spicy_picks)) # 중복 제거
 
     return {
         "raw_sfw_tags": [t[0] for t in sorted_sfw[:10]],
-        "raw_hidden_tags": [t[0] for t in sorted_hidden[:10]],
+        "raw_hidden_tags": raw_spicy_tags[:10],
         "search_sfw_queries": search_sfw_queries,
         "search_hidden_queries": search_hidden_queries,
         "tag_to_urls": tag_to_urls,
