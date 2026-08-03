@@ -30,14 +30,23 @@ export default function SecretPickPage() {
 
   if (!data) return null;
 
-  const { hidden_recommendations, hidden_keywords, spicy_recommendations, raw_hidden_tags } = data;
+  const { 
+    hidden_recommendations, 
+    hidden_keywords, 
+    hidden_category,
+    spicy_recommendations, 
+    raw_hidden_tags,
+    spicy_category
+  } = data;
 
-  let currentKeywords = hidden_keywords;
-  let currentRecommendations = hidden_recommendations;
+  let currentKeywords = hidden_keywords || [];
+  let currentRecommendations = hidden_recommendations || [];
+  let currentCategory = hidden_category || (currentKeywords[0] || '비밀의 방');
 
-  if (isSpicyMode && raw_hidden_tags?.length > 0) {
-    currentKeywords = raw_hidden_tags;
-    currentRecommendations = spicy_recommendations;
+  if (isSpicyMode) {
+    currentKeywords = raw_hidden_tags || [];
+    currentRecommendations = spicy_recommendations || [];
+    currentCategory = spicy_category || (currentKeywords[0] || '은밀한 욕망');
   }
 
   return (
@@ -124,7 +133,7 @@ export default function SecretPickPage() {
           {isSpicyMode ? '당신의 진짜 매운맛 취향 (Spicy Pick)' : '당신의 진짜 서브 취향 (Secret Pick)'}
         </h2>
         <h1 style={{ fontSize: '2.5rem', fontWeight: 800, backgroundImage: isSpicyMode ? 'linear-gradient(to right, #ff0000, #cc0000)' : 'linear-gradient(to right, #ff6b6b, #ff8e53)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent', margin: 0 }}>
-          {currentKeywords?.[0] ? `#${currentKeywords[0]}` : '비밀의 방'}
+          #{currentCategory} 마니아
         </h1>
         <p style={{ color: 'var(--text-muted)', marginTop: '1rem', lineHeight: '1.6' }}>
           {isSpicyMode 

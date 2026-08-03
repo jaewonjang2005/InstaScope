@@ -32,7 +32,8 @@ export default function ResultPage() {
   const { keywords, sfw_recommendations, hidden_recommendations } = data;
   const totalTags = keywords?.total_tags_found || 0;
 
-  const topKeyword = keywords?.search_sfw_queries?.[0] || '탐험가';
+  const mainCategory = keywords?.main_category || keywords?.search_sfw_queries?.[0] || '탐험가';
+  const displayKeywords = keywords?.search_sfw_queries || [];
   
   return (
     <div className="fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -41,7 +42,7 @@ export default function ResultPage() {
           분석 완료! 당신의 인스타 자아는...
         </h2>
         <h1 style={{ fontSize: '3rem', marginBottom: '1rem', letterSpacing: '-1px' }}>
-          <span className="gradient-text">#{topKeyword}</span> 마니아
+          <span className="gradient-text">#{mainCategory}</span> 마니아
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>
           총 {totalTags.toLocaleString()}개의 흔적을 분석해 맞춤 콘텐츠를 찾았습니다.
@@ -51,7 +52,7 @@ export default function ResultPage() {
       <div className="glass-card" style={{ marginBottom: '2rem', padding: '1.5rem', textAlign: 'center' }}>
         <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>추출된 핵심 취향 키워드</h3>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
-          {keywords?.search_sfw_queries?.map((kw, i) => (
+          {displayKeywords.map((kw, i) => (
              <span key={`sfw-${i}`} className="badge" style={{ padding: '0.4rem 0.8rem', background: 'rgba(255,255,255,0.1)', borderRadius: '20px' }}>#{kw}</span>
           ))}
         </div>
@@ -71,8 +72,10 @@ export default function ResultPage() {
             state: { 
               hidden_recommendations: hidden_recommendations,
               hidden_keywords: keywords?.search_hidden_queries,
+              hidden_category: keywords?.hidden_category,
               spicy_recommendations: data.spicy_recommendations,
-              raw_hidden_tags: keywords?.raw_hidden_tags
+              raw_hidden_tags: keywords?.raw_hidden_tags,
+              spicy_category: keywords?.spicy_category
             } 
           })}
           className="glass-card"

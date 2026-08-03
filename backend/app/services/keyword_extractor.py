@@ -346,105 +346,65 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
             # 그렇지 않으면 일반적인 콘텐츠 파이프라인으로 라우팅
             return "SFW"
 
-
-    def generate_final_queries(
-        explicit_hidden_tags: Dict[str, float],
-        implicit_hidden_tags: Dict[str, float],
-        sfw_tags: Dict[str, float],
-        secret_picks: List[str] = [],
-        num_queries: int = 5
-    ) -> Tuple[List[str], List[str]]:
-        """
-        분류된 태그들을 바탕으로 SFW 및 HIDDEN 검색어 리스트를 각각 5개까지 생성합니다.
-        """
-        # --- SFW 쿼리 생성 (최대 5개) ---
-        search_sfw_queries = []
-        sorted_general = sorted(sfw_tags.items(), key=lambda x: x[1], reverse=True)
-        for tag, score in sorted_general:
-            if tag not in search_sfw_queries:
-                search_sfw_queries.append(tag)
-                
-        search_sfw_queries = search_sfw_queries[:num_queries]
-
-        # --- HIDDEN 쿼리 생성 (최대 5개, SFW와 유사도 차단) ---
-        search_hidden_queries = []
-        combined_hidden = list(secret_picks[:3]) 
-        
-        all_hidden_tags = list(implicit_hidden_tags.items()) + list(explicit_hidden_tags.items())
-        if all_hidden_tags:
-            sorted_hidden = sorted(all_hidden_tags, key=lambda x: x[1], reverse=True)
-            for tag, score in sorted_hidden:
-                # 점수가 1 이하인 노이즈 태그로 억지로 5개를 채우지 않도록 방지
-                if score > 1 and tag not in combined_hidden:
-                    combined_hidden.append(tag)
-                    
-        for tag in secret_picks[3:]:
-            if tag not in combined_hidden:
-                combined_hidden.append(tag)
-        
-        # 중복/유사 태그 방지 로직 (SFW와의 유사도 차단)
-        for tag in combined_hidden:
-            is_overlap = False
-            for sfw_tag in search_sfw_queries:
-                if is_similar(tag, sfw_tag):
-                    is_overlap = True
-                    break
-            
-            # 카테고리 내에서 이미 추가된 태그들과도 유사하면 제외
-            for added_tag in search_hidden_queries:
-                if is_similar(tag, added_tag):
-                    is_overlap = True
-                    break
-                    
-            if not is_overlap and len(search_hidden_queries) < num_queries:
-                search_hidden_queries.append(tag)
-                
-        return search_sfw_queries, search_hidden_queries
-
-
-    def is_similar(a: str, b: str) -> bool:
-        a_low = a.lower().replace(" ", "")
-        b_low = b.lower().replace(" ", "")
-        if a_low in b_low or b_low in a_low:
-            return True
-        import difflib
-        return difflib.SequenceMatcher(None, a_low, b_low).ratio() >= 0.7
-
-    def filter_similar_tags(tags_list, compare_against_lists=[], max_len=5):
-        filtered = []
-        for tag in tags_list:
-            is_overlap = False
-            for compare_list in compare_against_lists:
-                for c_tag in compare_list:
-                    if is_similar(tag, c_tag):
-                        is_overlap = True
-                        break
-                if is_overlap: break
-            
-            for f_tag in filtered:
-                if is_similar(tag, f_tag):
-                    is_overlap = True
-                    break
-                    
-            if not is_overlap and len(filtered) < max_len:
-                filtered.append(tag)
-        return filtered
-
     # --- [실제 실행 로직 및 기존 API 포맷에 맞춘 Return 매핑] ---
     explicit_hidden, implicit_hidden, sfw = preprocess_and_classify_tags(tag_scores)
     
-    search_sfw_queries, search_hidden_queries = generate_final_queries(explicit_hidden, implicit_hidden, sfw, secret_picks)
+    # 1. SFW 쿼리 생성 (최대 5개)
+    search_sfw_queries = filter_similar_tags(
+        [t[0] for t in sorted(sfw.items(), key=lambda x: x[1], reverse=True)], 
+        max_len=5
+    )
+    raw_sfw_tags = search_sfw_queries.copy()
     
-    # 화면에 보여주기 위한 raw tags 정렬 (중복 방지 필터링)
-    raw_sfw_tags = filter_similar_tags([t[0] for t in sorted(sfw.items(), key=lambda x: x[1], reverse=True)], max_len=5)
+    # 2. 메인 카테고리 선정 (빈도수 기반)
+    sfw_raw_counts = {}
+    for tag in sfw.keys():
+        sfw_raw_counts[tag] = tag_stats[tag].get('doc_count', 0)
     
-    # Spicy Mode를 위한 찐 매운맛 키워드: 하드코딩 19금 키워드 + 수학적 극단치(Spicy Picks)
+    sorted_by_freq = sorted(sfw_raw_counts.items(), key=lambda x: x[1], reverse=True)
+    main_category = sorted_by_freq[0][0] if sorted_by_freq else (search_sfw_queries[0] if search_sfw_queries else "트렌드")
+
+    # 3. 서브 취향 (Secret Pick - OFF 상태)
+    # SFW 태그 중에서 Private Ratio가 높은 태그들만 (명시적/암시적 매운맛 제외)
+    search_hidden_queries = filter_similar_tags(
+        [t for t in secret_picks if t in sfw], 
+        compare_against_lists=[search_sfw_queries], 
+        max_len=5
+    )
+    
+    hidden_category = "비밀의 방"
+    if search_hidden_queries:
+        hidden_counts = {tag: tag_stats[tag].get('doc_count', 0) for tag in search_hidden_queries}
+        hidden_category = sorted(hidden_counts.items(), key=lambda x: x[1], reverse=True)[0][0] if hidden_counts else search_hidden_queries[0]
+
+    # 4. 매운맛 취향 (Spicy Pick - ON 상태)
     explicit_tags = [t[0] for t in sorted(explicit_hidden.items(), key=lambda x: x[1], reverse=True)]
-    spicy_picks = [t[0] for t in sorted_by_ratio[:10]] # 극단적 Private Ratio
-    raw_spicy_candidates = list(dict.fromkeys(explicit_tags + spicy_picks))
+    implicit_tags = [t[0] for t in sorted(implicit_hidden.items(), key=lambda x: x[1], reverse=True)]
     
-    raw_spicy_tags = filter_similar_tags(raw_spicy_candidates, compare_against_lists=[search_sfw_queries], max_len=5)
+    raw_spicy_candidates = list(dict.fromkeys(explicit_tags + implicit_tags))
+    
+    # 매운맛 키워드가 부족할 경우, Private Ratio 극단치 태그 중 서브 취향(search_hidden_queries)과 안 겹치는 것을 추가
+    if len(raw_spicy_candidates) < 5:
+        spicy_picks = [t[0] for t in sorted_by_ratio[:15]]
+        for t in spicy_picks:
+            if t not in raw_spicy_candidates and t not in search_hidden_queries:
+                raw_spicy_candidates.append(t)
+    
+    raw_spicy_tags = filter_similar_tags(
+        raw_spicy_candidates, 
+        compare_against_lists=[search_sfw_queries, search_hidden_queries], 
+        max_len=5
+    )
+    
+    spicy_category = "은밀한 욕망"
+    if raw_spicy_tags:
+        spicy_counts = {tag: tag_stats[tag].get('doc_count', 0) for tag in raw_spicy_tags if tag in tag_stats}
+        spicy_category = sorted(spicy_counts.items(), key=lambda x: x[1], reverse=True)[0][0] if spicy_counts else raw_spicy_tags[0]
+    
     return {
+        "main_category": main_category,
+        "hidden_category": hidden_category,
+        "spicy_category": spicy_category,
         "raw_sfw_tags": raw_sfw_tags,
         "raw_hidden_tags": raw_spicy_tags,
         "search_sfw_queries": search_sfw_queries,
