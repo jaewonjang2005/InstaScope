@@ -84,9 +84,10 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
                 valid_tags.append(tag_clean)
                 
                 if tag_clean not in tag_stats:
-                    tag_stats[tag_clean] = {'public': 0.0, 'private': 0.0, 'doc_count': 0, 'total_siblings': 0}
+                    tag_stats[tag_clean] = {'public': 0.0, 'private': 0.0, 'doc_count': 0, 'weighted_count': 0.0, 'total_siblings': 0}
                 
                 tag_stats[tag_clean]['doc_count'] += 1
+                tag_stats[tag_clean]['weighted_count'] += time_weight
                 tag_stats[tag_clean]['total_siblings'] += tag_len
                 
                 # Public: 좋아요, 스토리 / Private: 저장, 컬렉션
@@ -425,8 +426,8 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     # --- [실제 실행 로직 및 기존 API 포맷에 맞춘 Return 매핑] ---
     explicit_hidden, implicit_hidden, sfw = preprocess_and_classify_tags(tag_scores)
     
-    # 1. 메인 카테고리 선정 (빈도수 기반 가장 강력한 SFW 태그)
-    sfw_raw_counts = {tag: tag_stats[tag].get('doc_count', 0) for tag in sfw.keys()}
+    # 1. 메인 카테고리 선정 (시간 가중치가 반영된 weighted_count 기반)
+    sfw_raw_counts = {tag: tag_stats[tag].get('weighted_count', 0) for tag in sfw.keys()}
     sorted_sfw_freq = sorted(sfw_raw_counts.items(), key=lambda x: x[1], reverse=True)
     main_category = sorted_sfw_freq[0][0] if sorted_sfw_freq else "트렌드"
     
@@ -450,7 +451,7 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     search_hidden_queries = []
     
     if secret_sfw_candidates:
-        hidden_counts = {tag: tag_stats[tag].get('doc_count', 0) for tag in secret_sfw_candidates}
+        hidden_counts = {tag: tag_stats[tag].get('weighted_count', 0) for tag in secret_sfw_candidates}
         hidden_category = sorted(hidden_counts.items(), key=lambda x: x[1], reverse=True)[0][0]
         
         # 연관 태그를 찾을 때는 후보군을 secret_sfw_candidates(최대 10개)로 제한하지 않고 전체 SFW 풀을 사용합니다.
@@ -482,7 +483,7 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     raw_spicy_tags = []
     
     if spicy_candidates_pool:
-        spicy_counts = {tag: tag_stats.get(tag, {}).get('doc_count', 0) for tag in spicy_candidates_pool}
+        spicy_counts = {tag: tag_stats.get(tag, {}).get('weighted_count', 0) for tag in spicy_candidates_pool}
         spicy_category = sorted(spicy_counts.items(), key=lambda x: x[1], reverse=True)[0][0]
         
         # 매운맛 연관 태그를 찾을 때, 일반 SFW 태그(예: 비키니 -> 해운대, 여름)도 함께 끌어올 수 있도록 풀 확장
