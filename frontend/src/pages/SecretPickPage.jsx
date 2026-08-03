@@ -127,19 +127,17 @@ export default function SecretPickPage() {
           {currentKeywords?.[0] ? `#${currentKeywords[0]}` : '비밀의 방'}
         </h1>
         <p style={{ color: 'var(--text-muted)', marginTop: '1rem', lineHeight: '1.6' }}>
-          {isBuldakMode
-            ? '안전장치 해제. 오직 순도 100% 19금/노출 관련 키워드만을 섬세하게 필터링하여 보여줍니다.'
-            : (isSpicyMode 
+          {isSpicyMode 
             ? '수학적 분석을 걷어내고, 인스타그램에서 당신이 남몰래 주시하고 있는 본능적이고 원초적인 19금/서브컬처 키워드만을 적나라하게 보여줍니다.' 
-            : '주된 취향은 아니지만, 은밀하게 혹은 무의식적으로 강하게 주시하고 있는 당신의 또 다른 취향입니다.')}
+            : '주된 취향은 아니지만, 은밀하게 혹은 무의식적으로 강하게 주시하고 있는 당신의 또 다른 취향입니다.'}
         </p>
       </div>
 
       <div className="glass-card" style={{ marginBottom: '2rem', padding: '1.5rem', textAlign: 'center' }}>
-        <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>{isBuldakMode ? '적발된 불닭맛 취향 키워드' : (isSpicyMode ? '적발된 매운맛 취향 키워드' : '발견된 서브 취향 키워드')}</h3>
+        <h3 style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>{isSpicyMode ? '적발된 매운맛 취향 키워드' : '발견된 서브 취향 키워드'}</h3>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
           {currentKeywords?.map((kw, i) => (
-             <span key={`hidden-${i}`} className="badge" style={{ padding: '0.4rem 0.8rem', background: isBuldakMode ? 'rgba(139,0,0,0.2)' : (isSpicyMode ? 'rgba(255,0,0,0.2)' : 'rgba(255,100,100,0.1)'), color: isBuldakMode ? '#8B0000' : (isSpicyMode ? '#ff3333' : '#ff8e53'), borderRadius: '20px' }}>#{kw}</span>
+             <span key={`hidden-${i}`} className="badge" style={{ padding: '0.4rem 0.8rem', background: isSpicyMode ? 'rgba(255,0,0,0.2)' : 'rgba(255,100,100,0.1)', color: isSpicyMode ? '#ff3333' : '#ff8e53', borderRadius: '20px' }}>#{kw}</span>
           ))}
           {(!currentKeywords || currentKeywords.length === 0) && (
             <span style={{ color: 'var(--text-muted)' }}>특별한 취향 태그가 없습니다.</span>
@@ -148,9 +146,9 @@ export default function SecretPickPage() {
       </div>
 
       <Recommendations 
-        title={isBuldakMode ? "Buldak Pick 추천 콘텐츠" : (isSpicyMode ? "Spicy Pick 추천 콘텐츠" : "Secret Pick 추천 콘텐츠")} 
+        title={isSpicyMode ? "Spicy Pick 추천 콘텐츠" : "Secret Pick 추천 콘텐츠"} 
         items={currentRecommendations} 
-        icon={isBuldakMode ? <span style={{fontSize: '24px'}}>🌶️</span> : (isSpicyMode ? <Skull size={24} color="#ff3333" /> : <Flame size={24} color="#ff6b6b" />)} 
+        icon={isSpicyMode ? <Skull size={24} color="#ff3333" /> : <Flame size={24} color="#ff6b6b" />} 
         colorClass="hidden-glow"
         emptyMessage="이 취향과 관련된 콘텐츠를 충분히 찾지 못했습니다."
       />

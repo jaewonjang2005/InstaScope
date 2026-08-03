@@ -397,29 +397,6 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
             # 그렇지 않으면 일반적인 콘텐츠 파이프라인으로 라우팅
             return "SFW"
 
-    # --- [사용 예시] ---
-    if __name__ == '__main__':
-        # 이전 단계에서 계산된 가상의 선호도 점수라고 가정합니다.
-        sample_affinity_scores_1 = {"HIDDEN": 87, "SFW": 38}  # 숨겨진 취향(Hidden)이 강한 경우
-        sample_affinity_scores_2 = {"HIDDEN": 20, "SFW": 80}  # 일반 취향이 강한 경우
-        sample_affinity_scores_3 = {}                           # 데이터가 없는 경우
-
-        # 함수를 호출하여 라우팅 결과를 확인합니다. (기본 임계값 0.4 사용)
-        route_1 = route_by_affinity(sample_affinity_scores_1)
-        route_2 = route_by_affinity(sample_affinity_scores_2)
-        route_3 = route_by_affinity(sample_affinity_scores_3)
-    
-        # 결과 출력
-        print("--- 라우팅 결과 (숨겨진 취향(Hidden) 강함) ---")
-        print(f"점수: {sample_affinity_scores_1}, 라우팅: {route_1}") # 예상: "HIDDEN"
-    
-        print("\n--- 라우팅 결과 (일반 취향 강함) ---")
-        print(f"점수: {sample_affinity_scores_2}, 라우팅: {route_2}") # 예상: "SFW"
-    
-        print("\n--- 라우팅 결과 (데이터 없음) ---")
-        print(f"점수: {sample_affinity_scores_3}, 라우팅: {route_3}") # 예상: "FALLBACK"
-
-        # --- [최종 검색어 생성 및 폴백 파트] ---
 
     def generate_final_queries(
         explicit_hidden_tags: Dict[str, float],
@@ -442,16 +419,17 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
 
         # --- HIDDEN 쿼리 생성 (최대 5개, SFW와 유사도 차단) ---
         search_hidden_queries = []
-        combined_hidden = list(secret_picks[:2]) 
+        combined_hidden = list(secret_picks[:3]) 
         
         all_hidden_tags = list(implicit_hidden_tags.items()) + list(explicit_hidden_tags.items())
         if all_hidden_tags:
             sorted_hidden = sorted(all_hidden_tags, key=lambda x: x[1], reverse=True)
             for tag, score in sorted_hidden:
-                if tag not in combined_hidden:
+                # 점수가 1 이하인 노이즈 태그로 억지로 5개를 채우지 않도록 방지
+                if score > 1 and tag not in combined_hidden:
                     combined_hidden.append(tag)
                     
-        for tag in secret_picks[2:]:
+        for tag in secret_picks[3:]:
             if tag not in combined_hidden:
                 combined_hidden.append(tag)
         
