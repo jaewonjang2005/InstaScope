@@ -453,7 +453,8 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         hidden_counts = {tag: tag_stats[tag].get('doc_count', 0) for tag in secret_sfw_candidates}
         hidden_category = sorted(hidden_counts.items(), key=lambda x: x[1], reverse=True)[0][0]
         
-        related_hidden = get_related_tags_by_cooccurrence(hidden_category, secret_sfw_candidates, co_occurrences)
+        # 연관 태그를 찾을 때는 후보군을 secret_sfw_candidates(최대 10개)로 제한하지 않고 전체 SFW 풀을 사용합니다.
+        related_hidden = get_related_tags_by_cooccurrence(hidden_category, list(sfw.keys()), co_occurrences)
         
         # 연관 태그가 부족하면 전체 secret_sfw_candidates 순위로 채움
         if len(related_hidden) < 4:
@@ -484,7 +485,9 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         spicy_counts = {tag: tag_stats.get(tag, {}).get('doc_count', 0) for tag in spicy_candidates_pool}
         spicy_category = sorted(spicy_counts.items(), key=lambda x: x[1], reverse=True)[0][0]
         
-        related_spicy = get_related_tags_by_cooccurrence(spicy_category, spicy_candidates_pool, co_occurrences)
+        # 매운맛 연관 태그를 찾을 때, 일반 SFW 태그(예: 비키니 -> 해운대, 여름)도 함께 끌어올 수 있도록 풀 확장
+        spicy_all_candidates = spicy_candidates_pool + list(sfw.keys())
+        related_spicy = get_related_tags_by_cooccurrence(spicy_category, spicy_all_candidates, co_occurrences)
         
         if len(related_spicy) < 4:
             global_spicy = [t for t in spicy_candidates_pool if t not in related_spicy and t != spicy_category]
