@@ -97,21 +97,16 @@ async def upload_chunk(
             
             job_id = create_job()
             
-            tag_to_urls = keywords_result.get("tag_to_urls", {})
-            used_urls = set()
-            
             # Search top 5 keywords for SFW and Hidden to fit within Vercel 10s limit
             sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:5])
             hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:5])
             spicy_recs = get_recommendations_for_keywords(keywords_result["raw_hidden_tags"][:5])
-            buldak_recs = get_recommendations_for_keywords(keywords_result["buldak_tags"][:5])
             
             analysis_result = {
                 "keywords": keywords_result,
                 "sfw_recommendations": sfw_recs,
                 "hidden_recommendations": hidden_recs,
-                "spicy_recommendations": spicy_recs,
-                "buldak_recommendations": buldak_recs
+                "spicy_recommendations": spicy_recs
             }
             save_analysis_result(job_id, analysis_result)
             
@@ -139,20 +134,15 @@ async def upload_payload(payload: JsonPayload, background_tasks: BackgroundTasks
         keywords_result = extract_taste_keywords(parser)
         job_id = create_job()
         
-        tag_to_urls = keywords_result.get("tag_to_urls", {})
-        used_urls = set()
-        
         sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:5])
         hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:5])
         spicy_recs = get_recommendations_for_keywords(keywords_result["raw_hidden_tags"][:5])
-        buldak_recs = get_recommendations_for_keywords(keywords_result["buldak_tags"][:5])
         
         analysis_result = {
             "keywords": keywords_result,
             "sfw_recommendations": sfw_recs,
             "hidden_recommendations": hidden_recs,
-            "spicy_recommendations": spicy_recs,
-            "buldak_recommendations": buldak_recs
+            "spicy_recommendations": spicy_recs
         }
         save_analysis_result(job_id, analysis_result)
         background_tasks.add_task(cleanup_expired_jobs)
@@ -180,21 +170,16 @@ async def upload_zip(background_tasks: BackgroundTasks, file: UploadFile = File(
         keywords_result = extract_taste_keywords(parser)
         job_id = create_job()
         
-        tag_to_urls = keywords_result.get("tag_to_urls", {})
-        used_urls = set()
-        
         # Search top 1 keyword for SFW and Hidden to fit within Vercel 10s limit
         sfw_recs = get_recommendations_for_keywords(keywords_result["search_sfw_queries"][:1])
         hidden_recs = get_recommendations_for_keywords(keywords_result["search_hidden_queries"][:1])
         spicy_recs = get_recommendations_for_keywords(keywords_result["raw_hidden_tags"][:1])
-        buldak_recs = get_recommendations_for_keywords(keywords_result["buldak_tags"][:1])
         
         analysis_result = {
             "keywords": keywords_result,
             "sfw_recommendations": sfw_recs,
             "hidden_recommendations": hidden_recs,
-            "spicy_recommendations": spicy_recs,
-            "buldak_recommendations": buldak_recs
+            "spicy_recommendations": spicy_recs
         }
         save_analysis_result(job_id, analysis_result)
         background_tasks.add_task(cleanup_expired_jobs)

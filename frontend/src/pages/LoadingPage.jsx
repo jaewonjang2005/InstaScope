@@ -1,7 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Search } from 'lucide-react';
+
+const CHUNK_SIZE = 2 * 1024 * 1024; // 2MB
+const CHUNK_UPLOAD_MAX_RETRIES = 3;
+const CHUNK_UPLOAD_RETRY_DELAY_MS = 800;
+const RESULT_POLL_INTERVAL_MS = 1500;
 
 export default function LoadingPage() {
   const location = useLocation();
@@ -10,8 +15,29 @@ export default function LoadingPage() {
   
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('파일을 준비하는 중...');
+  const pollIntervalRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const isPollingRef = useRef(false);
+
+  const setSafeStatusText = (text) => {
+    if (isMountedRef.current) {
+      setStatusText(text);
+    }
+  };
+
+  const setSafeProgress = (value) => {
+    if (isMountedRef.current) {
+      setProgress(value);
+    }
+  };
+
+  const sleep = (ms) => new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     if (!file) {
       navigate('/');
       return;
@@ -19,74 +45,110 @@ export default function LoadingPage() {
 
     const uploadFile = async () => {
       try {
-        const chunkSize = 2 * 1024 * 1024; // 2MB
-        const totalChunks = Math.ceil(file.size / chunkSize);
+        const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
         const uploadId = `${Date.now()}_${Math.random().toString(36).substring(7)}`;
         
         for (let i = 0; i < totalChunks; i++) {
-          const start = i * chunkSize;
-          const end = Math.min(start + chunkSize, file.size);
+          if (!isMountedRef.current) {
+            return;
+          }
+
+          const start = i * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, file.size);
           const chunk = file.slice(start, end);
           
-          const formData = new FormData();
-          formData.append('upload_id', uploadId);
-          formData.append('chunk_index', i.toString());
-          formData.append('total_chunks', totalChunks.toString());
-          formData.append('file', chunk, file.name);
-
-          setStatusText(`데이터 전송 중... (${i + 1}/${totalChunks})`);
-          
           const apiUrl = import.meta.env.DEV ? 'http://localhost:8000/api' : '/api';
-          const response = await axios.post(`${apiUrl}/upload-chunk`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-          });
+          let response = null;
+
+          for (let attempt = 1; attempt <= CHUNK_UPLOAD_MAX_RETRIES; attempt++) {
+            try {
+              setSafeStatusText(`데이터 전송 중... (${i + 1}/${totalChunks})`);
+
+              const formData = new FormData();
+              formData.append('upload_id', uploadId);
+              formData.append('chunk_index', i.toString());
+              formData.append('total_chunks', totalChunks.toString());
+              formData.append('file', chunk, file.name);
+
+              response = await axios.post(`${apiUrl}/upload-chunk`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+              });
+              break;
+            } catch (error) {
+              if (attempt === CHUNK_UPLOAD_MAX_RETRIES) {
+                throw error;
+              }
+
+              setSafeStatusText(`전송 재시도 중... (${i + 1}/${totalChunks}, ${attempt}/${CHUNK_UPLOAD_MAX_RETRIES - 1})`);
+              await sleep(CHUNK_UPLOAD_RETRY_DELAY_MS * attempt);
+            }
+          }
 
           // Update progress bar
-          setProgress(Math.round(((i + 1) / totalChunks) * 100));
+          setSafeProgress(Math.round(((i + 1) / totalChunks) * 100));
 
-          if (response.data.completed) {
-            setStatusText('데이터 분석 중... 거의 다 왔습니다!');
+          if (response?.data?.completed) {
+            setSafeStatusText('데이터 분석 중... 거의 다 왔습니다!');
             
             // Poll for results
             const jobId = response.data.job_id;
-            pollResults(jobId);
+            startPolling(jobId);
             break;
           }
         }
       } catch (err) {
         console.error('Upload error:', err);
-        alert('업로드 중 오류가 발생했습니다. 다시 시도해주세요.');
-        navigate('/');
+        if (isMountedRef.current) {
+          alert('업로드 중 오류가 발생했습니다. 다시 시도해주세요.');
+          navigate('/');
+        }
       }
     };
 
     uploadFile();
+    
+    return () => {
+      isMountedRef.current = false;
+      if (pollIntervalRef.current !== null) {
+        clearInterval(pollIntervalRef.current);
+        pollIntervalRef.current = null;
+      }
+    };
   }, [file, navigate]);
 
-  const pollResults = async (jobId) => {
-    try {
-      // Allow the backend a moment to process the in-memory extraction
-      setTimeout(async () => {
-        try {
-          const apiUrl = import.meta.env.DEV ? 'http://localhost:8000/api' : '/api';
-          const res = await axios.get(`${apiUrl}/results/${jobId}`);
-          if (res.data.status === 'success') {
-            navigate('/result', { state: { data: res.data.data } });
-          }
-        } catch (e) {
-          if (e.response && e.response.status === 404) {
-            // Not ready yet, poll again
-            setTimeout(() => pollResults(jobId), 1500);
-          } else {
-            console.error('Result error:', e);
+  const startPolling = (jobId) => {
+    if (pollIntervalRef.current !== null) {
+      clearInterval(pollIntervalRef.current);
+    }
+
+    pollIntervalRef.current = setInterval(async () => {
+      if (!isMountedRef.current || isPollingRef.current) {
+        return;
+      }
+
+      isPollingRef.current = true;
+      try {
+        const apiUrl = import.meta.env.DEV ? 'http://localhost:8000/api' : '/api';
+        const res = await axios.get(`${apiUrl}/results/${jobId}`);
+        if (res.data.status === 'success') {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+          navigate('/result', { state: { data: res.data.data } });
+        }
+      } catch (e) {
+        if (!(e.response && e.response.status === 404)) {
+          console.error('Result error:', e);
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+          if (isMountedRef.current) {
             alert('분석 결과를 가져오는데 실패했습니다.');
             navigate('/');
           }
         }
-      }, 1500);
-    } catch (err) {
-      console.error(err);
-    }
+      } finally {
+        isPollingRef.current = false;
+      }
+    }, RESULT_POLL_INTERVAL_MS);
   };
 
   return (

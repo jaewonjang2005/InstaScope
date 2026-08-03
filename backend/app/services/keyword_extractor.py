@@ -52,7 +52,6 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     story_likes = parser.parse_story_likes()
 
     tag_stats = {}
-    tag_to_urls = {}
     
     import time
     current_time = time.time()
@@ -61,7 +60,6 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         for p in posts:
             ts = p.get('timestamp', 0)
             tags = p.get('hashtags', [])
-            url = p.get('url', '')
             
             # Time Decay Weighting 복원
             time_weight = 1.0
@@ -92,12 +90,6 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
                 else:
                     tag_stats[tag_clean]['private'] += (time_weight * 3.0)  # 저장(Save) 기본 가중치
                 
-                if url:
-                    if tag_clean not in tag_to_urls:
-                        tag_to_urls[tag_clean] = set()
-                    if len(tag_to_urls[tag_clean]) < 10:
-                        tag_to_urls[tag_clean].add(url)
-
     process_posts(liked, 'liked')
     process_posts(saved, 'saved')
     process_posts(stories_viewed, 'story')
@@ -283,27 +275,6 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         # 분류가 완료된 세 개의 딕셔너리를 튜플 형태로 반환합니다.
         return explicit_hidden_tags, implicit_hidden_tags, sfw_tags
 
-    # --- [사용 예시] ---
-    if __name__ == '__main__':
-        # 가상의 태그 점수 데이터
-        sample_tag_scores = {
-            "일상": 10, "소통": 8, "섹시": 25, "직캠": 30, "포르노": 5, 
-            "요가": 15, "게임": 20, "브라": 12, "캠핑": 18
-        }
-    
-        # 함수를 호출하여 태그들을 분류합니다.
-        explicit_hidden, implicit_hidden, sfw = preprocess_and_classify_tags(sample_tag_scores)
-    
-        # 결과 출력
-        print("--- 명시적 숨겨진(Hidden) 태그 ---")
-        print(explicit_hidden)
-        print("\n--- 잠재적 숨겨진(Hidden) 태그 ---")
-        print(implicit_hidden)
-        print("\n--- 맞춤(SFW) 태그 ---")
-        print(sfw)
-
-        # --- [선호도 점수 계산 파트] ---
-
     def calculate_affinity_scores(
         explicit_hidden_tags: Dict[str, int], 
         implicit_hidden_tags: Dict[str, int], 
@@ -341,28 +312,6 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         final_scores = {category: score for category, score in affinity_scores.items() if score > 0}
     
         return final_scores
-
-    # --- [사용 예시] ---
-    if __name__ == '__main__':
-        # 이전 단계에서 분류된 가상의 데이터라고 가정합니다.
-        sample_explicit_hidden = {"포르노": 5, "브라": 12}
-        sample_implicit_hidden = {"섹시": 25, "직캠": 30, "요가": 15}
-        sample_sfw_tags = {"게임": 20, "캠핑": 18}
-
-        # 함수를 호출하여 선호도 점수를 계산합니다.
-        affinity_scores = calculate_affinity_scores(
-            explicit_hidden_tags=sample_explicit_hidden,
-            implicit_hidden_tags=sample_implicit_hidden,
-            sfw_tags=sample_sfw_tags
-        )
-    
-        # 결과 출력
-        print("--- 최종 선호도 점수 ---")
-        print(affinity_scores)
-        # 예상 출력: {'HIDDEN': 87, 'SFW': 38}
-        # (HIDDEN: 5+12+25+30+15 = 87, SFW: 20+18 = 38)
-
-        # --- [임계값 기반 동적 라우팅 파트] ---
 
     def route_by_affinity(affinity_scores: Dict[str, float], threshold: float = 0.4) -> str:
         """
@@ -495,14 +444,10 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     raw_spicy_candidates = list(dict.fromkeys(explicit_tags + spicy_picks))
     
     raw_spicy_tags = filter_similar_tags(raw_spicy_candidates, compare_against_lists=[search_sfw_queries], max_len=5)
-    buldak_tags = filter_similar_tags(explicit_tags, compare_against_lists=[search_sfw_queries], max_len=5)
-
     return {
         "raw_sfw_tags": raw_sfw_tags,
         "raw_hidden_tags": raw_spicy_tags,
-        "buldak_tags": buldak_tags,
         "search_sfw_queries": search_sfw_queries,
         "search_hidden_queries": search_hidden_queries,
-        "tag_to_urls": tag_to_urls,
         "total_tags_found": len(tag_scores)
     }

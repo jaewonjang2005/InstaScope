@@ -1,5 +1,5 @@
 import React from 'react';
-import { ExternalLink, Hash, Flame } from 'lucide-react';
+import { ExternalLink } from 'lucide-react';
 
 export default function Recommendations({ title, items, icon, colorClass, emptyMessage }) {
   if (!items || items.length === 0) {

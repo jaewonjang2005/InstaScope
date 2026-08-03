@@ -26,8 +26,8 @@ def test_full_dataset():
     print(f"Top Hidden Search Queries: {keywords_result['search_hidden_queries']}")
     
     print("\n--- Search Results ---")
-    sfw_recs = get_recommendations_for_keywords(keywords_result['search_sfw_queries'][:2], max_per_keyword=2)
-    hidden_recs = get_recommendations_for_keywords(keywords_result['search_hidden_queries'][:2], max_per_keyword=2)
+    sfw_recs = get_recommendations_for_keywords(keywords_result['search_sfw_queries'][:2])
+    hidden_recs = get_recommendations_for_keywords(keywords_result['search_hidden_queries'][:2])
     
     print("\n[SFW Recommendations]:")
     for r in sfw_recs:
