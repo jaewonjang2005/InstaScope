@@ -34,11 +34,14 @@ def is_valid_instagram_url(url: str) -> bool:
         print(f"URL validation error for {url}: {e}")
         return False
 
-def get_recommendations_for_keywords(keywords: list, tag_to_urls: dict = None, max_per_keyword: int = 2) -> list:
+def get_recommendations_for_keywords(keywords: list, tag_to_urls: dict = None, max_per_keyword: int = 2, used_urls: set = None) -> list:
     """
     키워드를 기반으로 추천 콘텐츠 링크를 생성합니다.
-    (사용자의 실제 좋아요 데이터 기반 URL이 있으면 우선 제공하고, 없으면 해시태그 검색 링크 제공)
+    (사용자의 실제 좋아요 데이터 기반 URL만 제공하며, 중복된 URL은 차단합니다.)
     """
+    if used_urls is None:
+        used_urls = set()
+        
     all_recommendations = []
     
     if not keywords:
@@ -49,23 +52,23 @@ def get_recommendations_for_keywords(keywords: list, tag_to_urls: dict = None, m
     for kw in keywords:
         safe_kw = kw.replace(" ", "")
         
-        # 1. 실제 사용자가 반응했던 포스트 URL이 있다면 무작위로 하나 추출
+        # 1. 실제 사용자가 반응했던 포스트 URL이 있다면 무작위로 추출
         if tag_to_urls and kw.lower() in tag_to_urls and tag_to_urls[kw.lower()]:
             urls = list(tag_to_urls[kw.lower()])
-            url = random.choice(urls)
-            all_recommendations.append({
-                "title": f"#{safe_kw} 관련 내 취향 게시물",
-                "url": url,
-                "snippet": f"과거에 반응을 남겼던 #{safe_kw} 태그의 게시물입니다.",
-                "matched_keyword": kw
-            })
-        else:
-            # 2. 없으면 기본 해시태그 검색 링크로 폴백
-            all_recommendations.append({
-                "title": f"#{safe_kw} 관련 인기 게시물 둘러보기",
-                "url": f"https://www.instagram.com/explore/tags/{safe_kw}/",
-                "snippet": f"인스타그램에서 #{safe_kw} 태그가 포함된 최신 트렌드를 확인해보세요.",
-                "matched_keyword": kw
-            })
-                
+            random.shuffle(urls)
+            
+            added_count = 0
+            for url in urls:
+                if url not in used_urls:
+                    used_urls.add(url)
+                    all_recommendations.append({
+                        "title": f"#{safe_kw} 관련 내 취향 게시물",
+                        "url": url,
+                        "snippet": f"과거에 반응을 남겼던 #{safe_kw} 태그의 게시물입니다.",
+                        "matched_keyword": kw
+                    })
+                    added_count += 1
+                    if added_count >= max_per_keyword:
+                        break
+                        
     return all_recommendations

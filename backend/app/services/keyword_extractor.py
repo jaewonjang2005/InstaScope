@@ -395,16 +395,24 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         implicit_hidden_tags: Dict[str, float],
         sfw_tags: Dict[str, float],
         secret_picks: List[str] = [],
-        num_queries: int = 10
+        num_queries: int = 5
     ) -> Tuple[List[str], List[str]]:
         """
-        분류된 태그들을 바탕으로 SFW 및 HIDDEN 검색어 리스트를 각각 10개까지 생성합니다.
+        분류된 태그들을 바탕으로 SFW 및 HIDDEN 검색어 리스트를 각각 5개까지 생성합니다.
         """
-        # --- HIDDEN 쿼리 생성 (19금 포함, 5~10개) ---
+        # --- SFW 쿼리 생성 (최대 5개) ---
+        search_sfw_queries = []
+        sorted_general = sorted(sfw_tags.items(), key=lambda x: x[1], reverse=True)
+        for tag, score in sorted_general:
+            if tag not in search_sfw_queries:
+                search_sfw_queries.append(tag)
+                
+        search_sfw_queries = search_sfw_queries[:num_queries]
+
+        # --- HIDDEN 쿼리 생성 (최대 5개, SFW와 유사도 차단) ---
         search_hidden_queries = []
-        combined_hidden = list(secret_picks[:2]) # 전체 최상위 찐 취향은 2개만 할당하여 공간 확보
+        combined_hidden = list(secret_picks[:2]) 
         
-        # 1. 19금/민감한 키워드(explicit) 및 잠재적(implicit) 키워드를 우선순위로 활용
         all_hidden_tags = list(implicit_hidden_tags.items()) + list(explicit_hidden_tags.items())
         if all_hidden_tags:
             sorted_hidden = sorted(all_hidden_tags, key=lambda x: x[1], reverse=True)
@@ -412,34 +420,29 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
                 if tag not in combined_hidden:
                     combined_hidden.append(tag)
                     
-        # 2. 남은 secret_picks 채워넣기
         for tag in secret_picks[2:]:
             if tag not in combined_hidden:
                 combined_hidden.append(tag)
         
-        # 3. 숨겨진 태그가 부족할 경우, 일반 태그(SFW) 중에서 차출 (단, 메인 취향 Top 5는 중복 방지를 위해 제외)
-        sorted_general = sorted(sfw_tags.items(), key=lambda x: x[1], reverse=True)
-        top_sfw = [t[0] for t in sorted_general[:5]]
-        
-        for tag, score in sorted_general:
-            if tag not in combined_hidden and tag not in top_sfw and len(combined_hidden) < num_queries:
-                combined_hidden.append(tag)
-        
-        search_hidden_queries = list(dict.fromkeys(combined_hidden))[:num_queries]
-
-        # --- SFW 쿼리 생성 (5~10개) ---
-        search_sfw_queries = []
-        for tag, score in sorted_general:
-            if tag not in search_sfw_queries:
-                search_sfw_queries.append(tag)
+        # 중복/유사 태그 방지 로직 (SFW와의 유사도 차단)
+        for tag in combined_hidden:
+            is_overlap = False
+            for sfw_tag in search_sfw_queries:
+                if is_similar(tag, sfw_tag):
+                    is_overlap = True
+                    break
+            
+            # 카테고리 내에서 이미 추가된 태그들과도 유사하면 제외
+            for added_tag in search_hidden_queries:
+                if is_similar(tag, added_tag):
+                    is_overlap = True
+                    break
+                    
+            if not is_overlap and len(search_hidden_queries) < num_queries:
+                search_hidden_queries.append(tag)
                 
-        search_sfw_queries = search_sfw_queries[:num_queries]
-
-        # --- 폴백 안전장치 ---
-        if not search_sfw_queries and not search_hidden_queries:
-            search_sfw_queries = ["일상", "소통", "데일리"]
-
         return search_sfw_queries, search_hidden_queries
+
 
     # --- [사용 예시] ---
     if __name__ == '__main__':
@@ -468,23 +471,54 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
             
         # === [END_DYNAMIC_ROUTING_LOGIC] ===
 
+    def is_similar(a: str, b: str) -> bool:
+        a_low = a.lower().replace(" ", "")
+        b_low = b.lower().replace(" ", "")
+        if a_low in b_low or b_low in a_low:
+            return True
+        import difflib
+        return difflib.SequenceMatcher(None, a_low, b_low).ratio() >= 0.7
+
+    def filter_similar_tags(tags_list, compare_against_lists=[], max_len=5):
+        filtered = []
+        for tag in tags_list:
+            is_overlap = False
+            for compare_list in compare_against_lists:
+                for c_tag in compare_list:
+                    if is_similar(tag, c_tag):
+                        is_overlap = True
+                        break
+                if is_overlap: break
+            
+            for f_tag in filtered:
+                if is_similar(tag, f_tag):
+                    is_overlap = True
+                    break
+                    
+            if not is_overlap and len(filtered) < max_len:
+                filtered.append(tag)
+        return filtered
+
     # --- [실제 실행 로직 및 기존 API 포맷에 맞춘 Return 매핑] ---
     explicit_hidden, implicit_hidden, sfw = preprocess_and_classify_tags(tag_scores)
     
     search_sfw_queries, search_hidden_queries = generate_final_queries(explicit_hidden, implicit_hidden, sfw, secret_picks)
     
-    # 화면에 보여주기 위한 raw tags 정렬
-    sorted_sfw = sorted(sfw.items(), key=lambda x: x[1], reverse=True)
+    # 화면에 보여주기 위한 raw tags 정렬 (중복 방지 필터링)
+    raw_sfw_tags = filter_similar_tags([t[0] for t in sorted(sfw.items(), key=lambda x: x[1], reverse=True)], max_len=5)
     
     # Spicy Mode를 위한 찐 매운맛 키워드: 하드코딩 19금 키워드 + 수학적 극단치(Spicy Picks)
     explicit_tags = [t[0] for t in sorted(explicit_hidden.items(), key=lambda x: x[1], reverse=True)]
-    spicy_picks = [t[0] for t in sorted_by_ratio[:5]] # 극단적 Private Ratio Top 5
-    raw_spicy_tags = list(dict.fromkeys(explicit_tags + spicy_picks)) # 중복 제거
+    spicy_picks = [t[0] for t in sorted_by_ratio[:10]] # 극단적 Private Ratio
+    raw_spicy_candidates = list(dict.fromkeys(explicit_tags + spicy_picks))
+    
+    raw_spicy_tags = filter_similar_tags(raw_spicy_candidates, compare_against_lists=[search_sfw_queries], max_len=5)
+    buldak_tags = filter_similar_tags(explicit_tags, compare_against_lists=[search_sfw_queries], max_len=5)
 
     return {
-        "raw_sfw_tags": [t[0] for t in sorted_sfw[:10]],
-        "raw_hidden_tags": raw_spicy_tags[:10],
-        "buldak_tags": explicit_tags[:10],
+        "raw_sfw_tags": raw_sfw_tags,
+        "raw_hidden_tags": raw_spicy_tags,
+        "buldak_tags": buldak_tags,
         "search_sfw_queries": search_sfw_queries,
         "search_hidden_queries": search_hidden_queries,
         "tag_to_urls": tag_to_urls,
