@@ -51,13 +51,9 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     stories_viewed = parser.parse_stories_viewed()
     story_likes = parser.parse_story_likes()
 
+    # 공통: 추출 데이터 (liked, saved 등)의 타임스탬프와 태그를 순회하며 가중치 합산
     tag_stats = {}
-    all_tag_lists = []
-    
-    SPAM_TAGS = {
-        "fyp", "foryou", "foryoupage", "reels", "instagram", "instagood", "instadaily",
-        "좋아요", "좋반", "맞팔", "선팔", "일상", "소통", "팔로우", "릴스", "추천", "explore"
-    }
+    co_occurrences = {} # 연관성 높은 키워드(동시 출현) 분석용
     
     import time
     current_time = time.time()
@@ -80,13 +76,11 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
             
             tag_len = len(tags)
             valid_tags = []
+            
             for t in tags:
                 if len(t) < 2:
                     continue
                 tag_clean = t.lower()
-                if tag_clean in SPAM_TAGS:
-                    continue
-                    
                 valid_tags.append(tag_clean)
                 
                 if tag_clean not in tag_stats:
@@ -100,9 +94,19 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
                     tag_stats[tag_clean]['public'] += time_weight
                 else:
                     tag_stats[tag_clean]['private'] += (time_weight * 3.0)  # 저장(Save) 기본 가중치
-            if valid_tags:
-                all_tag_lists.append(valid_tags)
-                
+            
+            # Co-occurrence tracking
+            # 중복 태그 제거하여 한 게시물 내에서 유일한 태그들끼리만 엮음
+            unique_valid = list(set(valid_tags))
+            for i in range(len(unique_valid)):
+                for j in range(i+1, len(unique_valid)):
+                    t1, t2 = unique_valid[i], unique_valid[j]
+                    if t1 not in co_occurrences: co_occurrences[t1] = {}
+                    if t2 not in co_occurrences: co_occurrences[t2] = {}
+                    # 가중치(time_weight)를 곱해서 최근 게시물일수록 더 높은 연관성 부여
+                    co_occurrences[t1][t2] = co_occurrences[t1].get(t2, 0) + time_weight
+                    co_occurrences[t2][t1] = co_occurrences[t2].get(t1, 0) + time_weight
+
     process_posts(liked, 'liked')
     process_posts(saved, 'saved')
     process_posts(stories_viewed, 'story')
@@ -113,23 +117,29 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         for col in collections:
             col_tags = col.get('hashtags', [])
             tag_len = len(col_tags)
-            valid_tags = []
+            valid_col_tags = []
+            
             for t in col_tags:
                 if len(t) < 2:
                     continue
                 tag_clean = t.lower()
-                if tag_clean in SPAM_TAGS:
-                    continue
+                valid_col_tags.append(tag_clean)
                 
-                valid_tags.append(tag_clean)
                 if tag_clean not in tag_stats:
                     tag_stats[tag_clean] = {'public': 0.0, 'private': 0.0, 'doc_count': 0, 'total_siblings': 0}
                 
                 tag_stats[tag_clean]['doc_count'] += 1
                 tag_stats[tag_clean]['total_siblings'] += tag_len
                 tag_stats[tag_clean]['private'] += 5.0  # 컬렉션은 시간 정보가 없으므로 고정 가중치 5.0
-            if valid_tags:
-                all_tag_lists.append(valid_tags)
+            
+            unique_valid = list(set(valid_col_tags))
+            for i in range(len(unique_valid)):
+                for j in range(i+1, len(unique_valid)):
+                    t1, t2 = unique_valid[i], unique_valid[j]
+                    if t1 not in co_occurrences: co_occurrences[t1] = {}
+                    if t2 not in co_occurrences: co_occurrences[t2] = {}
+                    co_occurrences[t1][t2] = co_occurrences[t1].get(t2, 0) + 5.0
+                    co_occurrences[t2][t1] = co_occurrences[t2].get(t1, 0) + 5.0
     except Exception as e:
         print(f"Collection parse error: {e}")
 
@@ -399,69 +409,91 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
                 filtered.append(tag)
         return filtered
 
+    def get_related_tags_by_cooccurrence(base_tag: str, candidates: list, co_occurrences: dict, limit: int = 4) -> list:
+        if base_tag not in co_occurrences:
+            return []
+        
+        # candidates 안에 있는 태그들만 필터링하여 연관성 점수로 정렬
+        related_scores = []
+        for tag, score in co_occurrences[base_tag].items():
+            if tag in candidates and tag != base_tag:
+                related_scores.append((tag, score))
+                
+        sorted_related = sorted(related_scores, key=lambda x: x[1], reverse=True)
+        return [t[0] for t in sorted_related]
+
     # --- [실제 실행 로직 및 기존 API 포맷에 맞춘 Return 매핑] ---
     explicit_hidden, implicit_hidden, sfw = preprocess_and_classify_tags(tag_scores)
     
-    # 1. 메인 카테고리 선정 (빈도수 기반)
+    # 1. 메인 카테고리 선정 (빈도수 기반 가장 강력한 SFW 태그)
     sfw_raw_counts = {tag: tag_stats[tag].get('doc_count', 0) for tag in sfw.keys()}
-    sorted_by_freq = sorted(sfw_raw_counts.items(), key=lambda x: x[1], reverse=True)
-    main_category = sorted_by_freq[0][0] if sorted_by_freq else "트렌드"
+    sorted_sfw_freq = sorted(sfw_raw_counts.items(), key=lambda x: x[1], reverse=True)
+    main_category = sorted_sfw_freq[0][0] if sorted_sfw_freq else "트렌드"
+    
+    # 2. 메인 카테고리와 함께 등장한 연관 SFW 쿼리 생성
+    # 글로벌 Top 태그들을 무작위로 섞는 대신, 메인 카테고리와 연관된 태그들만 필터링합니다.
+    sfw_candidates = list(sfw.keys())
+    related_sfw = get_related_tags_by_cooccurrence(main_category, sfw_candidates, co_occurrences)
+    
+    # 만약 연관 태그가 부족하면, 전체 SFW 순위로 채움 (Fallback)
+    if len(related_sfw) < 4:
+        global_sfw = [t[0] for t in sorted_sfw_freq if t[0] not in related_sfw and t[0] != main_category]
+        related_sfw.extend(global_sfw)
+        
+    search_sfw_queries = filter_similar_tags([main_category] + related_sfw, max_len=5)
+    raw_sfw_tags = search_sfw_queries.copy()
 
-    # 2. 서브 취향 카테고리 선정 (빈도수 기반)
-    global_hidden_candidates = [t for t in secret_picks if t in sfw]
-    hidden_counts = {tag: tag_stats[tag].get('doc_count', 0) for tag in global_hidden_candidates}
-    hidden_category = sorted(hidden_counts.items(), key=lambda x: x[1], reverse=True)[0][0] if hidden_counts else "비밀의 방"
+    # 3. 서브 취향 (Secret Pick - OFF 상태)
+    # SFW 태그 중에서 Private Ratio가 높은 태그들을 대상으로 메인 카테고리 선정
+    secret_sfw_candidates = [t for t in secret_picks if t in sfw]
+    hidden_category = "비밀의 방"
+    search_hidden_queries = []
+    
+    if secret_sfw_candidates:
+        hidden_counts = {tag: tag_stats[tag].get('doc_count', 0) for tag in secret_sfw_candidates}
+        hidden_category = sorted(hidden_counts.items(), key=lambda x: x[1], reverse=True)[0][0]
+        
+        related_hidden = get_related_tags_by_cooccurrence(hidden_category, secret_sfw_candidates, co_occurrences)
+        
+        # 연관 태그가 부족하면 전체 secret_sfw_candidates 순위로 채움
+        if len(related_hidden) < 4:
+            global_hidden = [t for t in secret_sfw_candidates if t not in related_hidden and t != hidden_category]
+            related_hidden.extend(global_hidden)
+            
+        search_hidden_queries = filter_similar_tags([hidden_category] + related_hidden, compare_against_lists=[search_sfw_queries], max_len=5)
+        # 필터링 후 모두 날아가서 비었다면 다시 처리
+        if not search_hidden_queries:
+            hidden_category = "비밀의 방"
 
-    # 3. 매운맛 카테고리 선정
+    # 4. 매운맛 취향 (Spicy Pick - ON 상태)
     explicit_tags = [t[0] for t in sorted(explicit_hidden.items(), key=lambda x: x[1], reverse=True)]
     implicit_tags = [t[0] for t in sorted(implicit_hidden.items(), key=lambda x: x[1], reverse=True)]
-    raw_spicy_candidates = list(dict.fromkeys(explicit_tags + implicit_tags))
-    if len(raw_spicy_candidates) < 5:
+    spicy_candidates_pool = list(dict.fromkeys(explicit_tags + implicit_tags))
+    
+    # 부족하면 극단치 SFW 태그(서브 취향과 안 겹치는 것) 추가
+    if len(spicy_candidates_pool) < 5:
         spicy_picks = [t[0] for t in sorted_by_ratio[:15]]
         for t in spicy_picks:
-            if t not in raw_spicy_candidates and t not in global_hidden_candidates:
-                raw_spicy_candidates.append(t)
+            if t not in spicy_candidates_pool and t not in search_hidden_queries:
+                spicy_candidates_pool.append(t)
                 
-    spicy_counts = {tag: tag_stats[tag].get('doc_count', 0) for tag in raw_spicy_candidates if tag in tag_stats}
-    spicy_category = sorted(spicy_counts.items(), key=lambda x: x[1], reverse=True)[0][0] if spicy_counts else "은밀한 욕망"
-
-    # --- 연관 키워드(Co-occurrence) 기반 쿼리 추출 ---
-    def get_related_tags(target_category: str, source_pool: dict) -> list:
-        if not target_category or target_category in ["트렌드", "비밀의 방", "은밀한 욕망"]:
-            return []
-        related_counts = {}
-        for tags in all_tag_lists:
-            if target_category in tags:
-                for t in tags:
-                    if t != target_category and t in source_pool:
-                        related_counts[t] = related_counts.get(t, 0) + 1
-        sorted_related = sorted(related_counts.items(), key=lambda x: (x[1], source_pool.get(x[0], 0)), reverse=True)
-        return [t[0] for t in sorted_related]
-
-    # SFW 쿼리 (메인 카테고리와 동시 출현한 태그 우선)
-    related_sfw = get_related_tags(main_category, sfw)
-    global_sfw = [t[0] for t in sorted(sfw.items(), key=lambda x: x[1], reverse=True)]
-    search_sfw_queries = filter_similar_tags(related_sfw + global_sfw, max_len=5)
+    spicy_category = "은밀한 욕망"
+    raw_spicy_tags = []
     
-    raw_sfw_tags = search_sfw_queries.copy()
-    
-    # 서브 취향 (Secret Pick) 쿼리
-    related_hidden = get_related_tags(hidden_category, sfw)
-    search_hidden_queries = filter_similar_tags(
-        related_hidden + global_hidden_candidates, 
-        compare_against_lists=[search_sfw_queries], 
-        max_len=5
-    )
+    if spicy_candidates_pool:
+        spicy_counts = {tag: tag_stats.get(tag, {}).get('doc_count', 0) for tag in spicy_candidates_pool}
+        spicy_category = sorted(spicy_counts.items(), key=lambda x: x[1], reverse=True)[0][0]
+        
+        related_spicy = get_related_tags_by_cooccurrence(spicy_category, spicy_candidates_pool, co_occurrences)
+        
+        if len(related_spicy) < 4:
+            global_spicy = [t for t in spicy_candidates_pool if t not in related_spicy and t != spicy_category]
+            related_spicy.extend(global_spicy)
+            
+        raw_spicy_tags = filter_similar_tags([spicy_category] + related_spicy, compare_against_lists=[search_sfw_queries, search_hidden_queries], max_len=5)
+        if not raw_spicy_tags:
+            spicy_category = "은밀한 욕망"
 
-    # 매운맛 취향 (Spicy Pick) 쿼리
-    spicy_pool = {t: tag_stats[t]['public'] + tag_stats[t]['private'] for t in raw_spicy_candidates if t in tag_stats}
-    related_spicy = get_related_tags(spicy_category, spicy_pool)
-    raw_spicy_tags = filter_similar_tags(
-        related_spicy + raw_spicy_candidates, 
-        compare_against_lists=[search_sfw_queries, search_hidden_queries], 
-        max_len=5
-    )
-    
     return {
         "main_category": main_category,
         "hidden_category": hidden_category,
