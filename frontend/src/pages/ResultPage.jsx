@@ -72,7 +72,9 @@ export default function ResultPage() {
               hidden_recommendations: hidden_recommendations,
               hidden_keywords: keywords?.search_hidden_queries,
               spicy_recommendations: data.spicy_recommendations,
-              raw_hidden_tags: keywords?.raw_hidden_tags
+              raw_hidden_tags: keywords?.raw_hidden_tags,
+              buldak_recommendations: data.buldak_recommendations,
+              buldak_tags: keywords?.buldak_tags
             } 
           })}
           className="glass-card"

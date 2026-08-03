@@ -480,6 +480,7 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     return {
         "raw_sfw_tags": [t[0] for t in sorted_sfw[:10]],
         "raw_hidden_tags": raw_spicy_tags[:10],
+        "buldak_tags": explicit_tags[:10],
         "search_sfw_queries": search_sfw_queries,
         "search_hidden_queries": search_hidden_queries,
         "tag_to_urls": tag_to_urls,
