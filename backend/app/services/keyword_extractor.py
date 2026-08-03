@@ -171,8 +171,8 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
     # 3. Mathematical Hidden (수학적 은밀한 취향) 도출
     hidden_candidates = []
     for tag, stats in tag_stats.items():
-        # Top 5 SFW(완전 대중적인 메인 취향)이거나 불용어면 제외
-        if tag in STOP_WORDS or tag in top_sfw[:5]:
+        # Top 5 SFW(완전 대중적인 메인 취향)이면 제외
+        if tag in top_sfw[:5]:
             continue
             
         # 해당 사용자의 Private 중앙값 이상인 태그들만 대상 (노이즈 제거)
@@ -268,10 +268,7 @@ def extract_taste_keywords(parser) -> Dict[str, Any]:
         # 원본 태그 점수 딕셔너리를 하나씩 순회합니다.
         for tag, score in tag_scores.items():
         
-            # 1. 불용어인지 먼저 확인합니다. 불용어라면 분류 과정을 건너뜁니다.
-            if tag in STOP_WORDS:
-                continue
-        
+
             # 2. 불용어가 아니면, 태그의 종류를 판별합니다.
             tag_type = classify_tag_type(tag)
         
